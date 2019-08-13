@@ -12,13 +12,11 @@ use self::regex::Regex;
 /// Struct for retrieving info from a git repo.
 pub struct Git<'a> {
     app: &'a App,
-    directory: &'a Path,
 }
 
 impl<'a> Git<'a> {
-
-    pub fn new(app: &'a App, directory: &'a Path) -> Git<'a> {
-        return Git { app, directory };
+    pub fn new(app: &'a App) -> Git<'a> {
+        return Git { app };
     }
 
     /// Runs the git with the given arguments and returns the result if the git command succeeded.
@@ -57,7 +55,7 @@ impl<'a> Git<'a> {
         return self.git(&["--no-pager", "log", "-n1", "--format=\"%ct000\""]);
     }
 
-    fn extract_single_branch(branch_text: &str) -> Option<String> {
+    fn extract_single_branch(&self, branch_text: &str) -> Option<String> {
         let lines = branch_text.lines();
         let branch_regex = Regex::new("^\\s*[*]\\s*").unwrap();
 
@@ -65,6 +63,8 @@ impl<'a> Git<'a> {
             .map(|line| branch_regex.replace_all(line.trim(), "").to_string())
             .filter(|branch| !branch.contains("HEAD detached"))
             .collect();
+        self.app.log(&format!("Found the following branches in the Git repo for the HEAD commit: {}", branches.join(", ")));
+
         if branches.len() != 1 {
             return None;
         }
@@ -72,7 +72,7 @@ impl<'a> Git<'a> {
         return match branches.first() {
             Some(branch) => return Some(branch.to_string()),
             _ => None
-        }
+        };
     }
 
     /// Last resort: try to guess the branch from the checked out commit.
@@ -81,6 +81,6 @@ impl<'a> Git<'a> {
     pub fn guess_branch(&self) -> Option<String> {
         let opt_branches = self.git(&["branch", "--contains"]);
         let branch_regex = Regex::new("^");
-        return opt_branches.and_then(|branch_text| Git::extract_single_branch(&branch_text));
+        return opt_branches.and_then(|branch_text| self.extract_single_branch(&branch_text));
     }
 }
