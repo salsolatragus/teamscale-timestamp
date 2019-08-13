@@ -73,6 +73,12 @@ impl<'a> Svn<'a> {
         }
     }
 
+    /// Tries to read the SVN branch form environment variables.
+    pub fn branch_from_environment(&self) -> Option<String> {
+        let environment_result = std::env::var("SVN_URL");
+        return environment_result.ok().and_then(|url| self.extract_branch_from_url(&url));
+    }
+
     /// Extracts the branch from the SVN URL of the current directory.
     pub fn branch(&self) -> Option<String> {
         let opt_url = self.svn(&["info", "--show-item", "url"]);
