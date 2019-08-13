@@ -1,5 +1,4 @@
 use std::option::Option;
-use std::path::Path;
 use std::string::String;
 
 use crate::git::Git;

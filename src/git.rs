@@ -1,7 +1,5 @@
 extern crate regex;
 
-use std::ffi::OsStr;
-use std::path::Path;
 use std::process::Command;
 
 use crate::app::App;
@@ -80,7 +78,6 @@ impl<'a> Git<'a> {
     /// returns that. Otherwise returns None.
     pub fn guess_branch(&self) -> Option<String> {
         let opt_branches = self.git(&["branch", "--contains"]);
-        let branch_regex = Regex::new("^");
         return opt_branches.and_then(|branch_text| self.extract_single_branch(&branch_text));
     }
 }
