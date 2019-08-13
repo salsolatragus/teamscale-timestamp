@@ -1,5 +1,6 @@
 use std::path::Path;
 use crate::app::App;
+use regex::Regex;
 
 mod app;
 mod git;
