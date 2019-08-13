@@ -43,18 +43,22 @@ impl App {
     }
 
     fn guess_branch_from_environment(&self) -> Option<String> {
-        return std::env::var("GIT_BRANCH")
-            .or(std::env::var("BRANCH"))
-            .ok();
+        let opt_branch = std::env::var("BRANCH").ok();
+        self.log(&format!("$BRANCH={}", opt_branch.clone().unwrap_or("".to_string())));
+        let opt_git_branch = std::env::var("GIT_BRANCH").ok();
+        self.log(&format!("$GIT_BRANCH={}", opt_git_branch.clone().unwrap_or("".to_string())));
+        return opt_git_branch.or(opt_branch);
     }
 
     pub fn guess_branch(&self) -> Option<String> {
+        self.log("Trying to determine branch");
         return self.guess_branch_from_svn()
             .or(self.guess_branch_from_git())
             .or(self.guess_branch_from_environment());
     }
 
     pub fn guess_timestamp(&self) -> Option<String> {
+        self.log("Trying to determine timestamp");
         let svn = Svn::new(self);
         if svn.is_svn() {
             match svn.timestamp() {

@@ -22,6 +22,8 @@ impl<'a> Svn<'a> {
 
     /// Runs SVN with the given arguments and returns the result if the command succeeded.
     fn svn(&self, args: &[&str]) -> Option<String> {
+        self.app.log(&format!("Running svn {}", args.join(" ")));
+
         let result = Command::new("svn")
             .env("LANG", "C")
             .args(args)
@@ -29,7 +31,7 @@ impl<'a> Svn<'a> {
             .map_to_stdout();
 
         match &result {
-            Err(error) => self.app.log(&format!("SVN command {} failed: {}", args.join(", "), error.to_string())),
+            Err(error) => self.app.log(&format!("svn {} failed: {}", args.join(" "), error.to_string())),
             _ => (),
         }
 
@@ -60,6 +62,7 @@ impl<'a> Svn<'a> {
     }
 
     fn extract_branch_from_url(&self, url: &str) -> Option<String> {
+        self.app.log(&format!("Trying to parse SVN URL: {}", url));
         let regex = Regex::new("(?:branches|tags)/(?P<branch>[^/]+)|(?P<trunk>trunk)").unwrap();
         let captures = regex.captures(url)?;
         return match captures.name("branch") {
@@ -74,6 +77,7 @@ impl<'a> Svn<'a> {
     /// Tries to read the SVN branch form environment variables.
     pub fn branch_from_environment(&self) -> Option<String> {
         let environment_result = std::env::var("SVN_URL");
+        self.app.log(&format!("$SVN_URL={}", environment_result.clone().unwrap_or("".to_string())));
         return environment_result.ok().and_then(|url| self.extract_branch_from_url(&url));
     }
 

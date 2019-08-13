@@ -17,15 +17,17 @@ impl<'a> Git<'a> {
         return Git { app };
     }
 
-    /// Runs the git with the given arguments and returns the result if the git command succeeded.
+    /// Runs git with the given arguments and returns the result if the git command succeeded.
     fn git(&self, args: &[&str]) -> Option<String> {
+        self.app.log(&format!("Running git {}", args.join(" ")));
+
         let result = Command::new("git")
             .args(args)
             .output()
             .map_to_stdout();
 
         match &result {
-            Err(error) => self.app.log(&format!("Git command {} failed: {}", args.join(", "), error.to_string())),
+            Err(error) => self.app.log(&format!("git {} failed: {}", args.join(" "), error.to_string())),
             _ => (),
         }
 
