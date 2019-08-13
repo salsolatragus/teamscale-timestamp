@@ -50,7 +50,7 @@ impl<'a> Git<'a> {
 
     /// Returns the TS timestamp for the checked out commit.
     pub fn head_timestamp(&self) -> Option<String> {
-        return self.git(&["--no-pager", "log", "-n1", "--format=\"%ct000\""]);
+        return self.git(&["--no-pager", "log", "-n1", "--format=%ct000"]);
     }
 
     fn extract_single_branch(&self, branch_text: &str) -> Option<String> {
