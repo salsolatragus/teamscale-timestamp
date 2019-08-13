@@ -11,7 +11,7 @@ impl App {
         return App { verbose };
     }
 
-    fn log(&self, message: String) {
+    pub fn log(&self, message: &str) {
         if self.verbose {
             println!("{}", message)
         }

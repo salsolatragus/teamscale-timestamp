@@ -2,6 +2,8 @@ use std::path::Path;
 use crate::app::App;
 
 mod app;
+mod git;
+mod utils;
 
 fn main() {
     let app = App::new(true);
