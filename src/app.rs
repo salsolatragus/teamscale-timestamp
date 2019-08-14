@@ -4,6 +4,9 @@ use std::string::String;
 use crate::git::Git;
 use crate::svn::Svn;
 use crate::utils::PeekOption;
+use std::path::Path;
+use std::fs::File;
+use std::io::Write;
 
 pub struct App {
     verbose: bool,
@@ -92,5 +95,12 @@ impl App {
             .if_some(|timestamp| self.log(&format!("Found Git timestamp {}", timestamp)))
             .if_none(|| self.log("Found no Git timestamp"));
         return svn_timestamp.or(git_timestamp);
+    }
+
+    /// Attempts to write revision.txt content to the given file path.
+    pub fn write_revision_txt(&self, t: &str, revision_txt_file: &Path) -> std::io::Result<()> {
+        let mut file = File::create(revision_txt_file)?;
+        file.write_all(format!("timestamp: {}", t).as_ref())?;
+        return Ok(());
     }
 }
