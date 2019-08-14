@@ -12,7 +12,9 @@ mod svn;
 mod utils;
 
 fn main() {
+    let version = env!("CARGO_PKG_VERSION");
     let matches = clap::App::new("teamscale-timestamp")
+        .version(version)
         .about("Tries to determine the value for the ?t= parameter when uploading external data to Teamscale. \
             Run this command from within the working directory of your version control system checkout. \
             Prints the value to be used for the ?t= parameter to STDOUT and exits with exit code 0. \
@@ -40,7 +42,7 @@ fn main() {
 
     let app = App::new(matches.is_present("verbose"), |variable| std::env::var(variable).ok());
     app.log(&format!("teamscale-timestamp v{} trying to determine branch + timestamp for an external upload",
-                     env!("CARGO_PKG_VERSION")));
+                     version));
 
     let opt_branch = matches.value_of("branch").map(|branch| branch.to_string())
         .or_else(|| app.guess_branch());
