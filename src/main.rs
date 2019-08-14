@@ -38,7 +38,7 @@ fn main() {
                 code branch + timestamp."))
         .get_matches();
 
-    let app = App::new(matches.is_present("verbose"));
+    let app = App::new(matches.is_present("verbose"), |variable| std::env::var(variable).ok());
     app.log(&format!("teamscale-timestamp v{} trying to determine branch + timestamp for an external upload",
                      env!("CARGO_PKG_VERSION")));
 

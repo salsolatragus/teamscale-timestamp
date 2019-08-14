@@ -1,20 +1,24 @@
+use std::fs::File;
+use std::io::Write;
 use std::option::Option;
+use std::path::Path;
 use std::string::String;
 
 use crate::git::Git;
 use crate::svn::Svn;
 use crate::utils::PeekOption;
-use std::path::Path;
-use std::fs::File;
-use std::io::Write;
 
 pub struct App {
     verbose: bool,
+    env_reader: fn(&str) -> Option<String>,
 }
 
 impl App {
-    pub fn new(verbose: bool) -> App {
-        return App { verbose };
+    pub fn new(verbose: bool, env_reader: fn(&str) -> Option<String>) -> App {
+        return App {
+            verbose,
+            env_reader,
+        };
     }
 
     pub fn log(&self, message: &str) {
@@ -40,7 +44,7 @@ impl App {
     }
 
     fn env_variable(&self, name: &str) -> Option<String> {
-        return std::env::var(name).ok()
+        return (self.env_reader)(name)
             .peek_or_default(|value| self.log(&format!("${}={}", name, value)), "".to_string());
     }
 
@@ -103,4 +107,27 @@ impl App {
         file.write_all(format!("timestamp: {}", t).as_ref())?;
         return Ok(());
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_environment_means_no_branch() {
+        let branch = App::new(true, |_| None).guess_branch_from_environment();
+        assert_eq!(None, branch);
+    }
+
+    #[test]
+    fn read_branch_from_env_variable() {
+        let branch = App::new(true, |variable| {
+            if variable == "GIT_BRANCH" {
+                return Some("the-branch".to_string());
+            }
+            return None;
+        }).guess_branch_from_environment();
+        assert_eq!(Some("the-branch".to_string()), branch);
+    }
+
 }
