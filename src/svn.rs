@@ -39,7 +39,7 @@ impl<'a> Svn<'a> {
     }
 
     /// Checks if the current directory is part of some SVN repo.
-    pub fn is_svn(&self) -> bool {
+    fn is_svn(&self) -> bool {
         let opt_stdout = self.svn(&["info"]);
 
         match opt_stdout {
@@ -56,6 +56,9 @@ impl<'a> Svn<'a> {
 
     /// Returns the TS timestamp for the currently checked out revision.
     pub fn timestamp(&self) -> Option<String> {
+        if !self.is_svn() {
+            return None;
+        }
         let opt_date_string = self.svn(&["info", "--show-item", "last-changed-date"]);
         let opt_date = opt_date_string.and_then(|date_string| DateTime::parse_from_rfc3339(&date_string).ok());
         return opt_date.map(|date| format!("{}000", date.timestamp()));
@@ -83,6 +86,9 @@ impl<'a> Svn<'a> {
 
     /// Extracts the branch from the SVN URL of the current directory.
     pub fn branch(&self) -> Option<String> {
+        if !self.is_svn() {
+            return None;
+        }
         let opt_url = self.svn(&["info", "--show-item", "url"]);
         return opt_url.and_then(|url| self.extract_branch_from_url(&url));
     }

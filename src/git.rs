@@ -35,7 +35,7 @@ impl<'a> Git<'a> {
     }
 
     /// Checks if the current directory is part of some Git repo.
-    pub fn is_git(&self) -> bool {
+    fn is_git(&self) -> bool {
         let opt_stdout = self.git(&["rev-parse", "--is-inside-work-tree"]);
 
         match opt_stdout {
@@ -52,6 +52,9 @@ impl<'a> Git<'a> {
 
     /// Returns the TS timestamp for the checked out commit.
     pub fn head_timestamp(&self) -> Option<String> {
+        if !self.is_git() {
+            return None;
+        }
         return self.git(&["--no-pager", "log", "-n1", "--format=%ct000"]);
     }
 
@@ -63,22 +66,32 @@ impl<'a> Git<'a> {
             .map(|line| branch_regex.replace_all(line.trim(), "").to_string())
             .filter(|branch| !branch.contains("HEAD detached"))
             .collect();
-        self.app.log(&format!("Found the following branches in the Git repo for the HEAD commit: {}", branches.join(", ")));
 
-        if branches.len() != 1 {
-            return None;
+        match branches.len() {
+            0 => {
+                self.app.log("Found no branches in the Git repo that contain the HEAD commit");
+                return None;
+            }
+            1 => {
+                self.app.log(&format!("Found exactly one branch in the Git repo that contains the HEAD commit: {}",
+                                      branches.first().unwrap()));
+                return branches.first().map(|branch| branch.to_string());
+            },
+            _ => {
+                self.app.log(&format!("Found more than one branch in the Git repo that contains the HEAD commit: {}",
+                                      branches.join(", ")));
+                return None;
+            }
         }
-
-        return match branches.first() {
-            Some(branch) => return Some(branch.to_string()),
-            _ => None
-        };
     }
 
     /// Last resort: try to guess the branch from the checked out commit.
     /// Will list all local branches this commit is part of. If there's exactly one,
     /// returns that. Otherwise returns None.
     pub fn guess_branch(&self) -> Option<String> {
+        if !self.is_git() {
+            return None;
+        }
         let opt_branches = self.git(&["branch", "--contains"]);
         return opt_branches.and_then(|branch_text| self.extract_single_branch(&branch_text));
     }

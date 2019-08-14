@@ -3,6 +3,7 @@ use std::string::String;
 
 use crate::git::Git;
 use crate::svn::Svn;
+use crate::utils::PeekOption;
 
 pub struct App {
     verbose: bool,
@@ -20,35 +21,28 @@ impl App {
     }
 
     fn guess_branch_from_svn(&self) -> Option<String> {
+        self.log("Trying to guess branch name from SVN");
         let svn = Svn::new(self);
-        if svn.is_svn() {
-            match svn.branch() {
-                Some(branch) => return Some(branch),
-                None => (),
-            }
-        }
-        return svn.branch_from_environment();
+        return svn.branch()
+            .or(svn.branch_from_environment())
+            .if_some(|branch| self.log(&format!("Found SVN branch {}", branch)))
+            .if_none(|| self.log("Found no SVN branch"));
+        ;
     }
 
     fn guess_branch_from_git(&self) -> Option<String> {
+        self.log("Trying to guess branch name from Git");
         let git = Git::new(self);
-        if git.is_git() {
-            match git.guess_branch() {
-                Some(branch) => return Some(branch),
-                None => (),
-            }
-        }
-
-        return None;
+        return git.guess_branch();
     }
 
     fn env_variable(&self, name: &str) -> Option<String> {
-        let opt_value = std::env::var(name).ok();
-        self.log(&format!("${}={}", name, opt_value.clone().unwrap_or("".to_string())));
-        return opt_value;
+        return std::env::var(name).ok()
+            .peek_or_default(|value| self.log(&format!("${}={}", name, value)), "".to_string());
     }
 
     fn guess_branch_from_environment(&self) -> Option<String> {
+        self.log("Trying to guess branch name from environment variables");
         // common names
         return self.env_variable("BRANCH")
             .or(self.env_variable("branch"))
@@ -72,7 +66,9 @@ impl App {
             .or(self.env_variable("CI_COMMIT_REF_NAME"))
             // Appveyor https://www.appveyor.com/docs/environment-variables/
             .or(self.env_variable("APPVEYOR_PULL_REQUEST_HEAD_REPO_BRANCH"))
-            .or(self.env_variable("APPVEYOR_REPO_BRANCH"));
+            .or(self.env_variable("APPVEYOR_REPO_BRANCH"))
+            .if_some(|branch| self.log(&format!("Found branch {} in environment", branch)))
+            .if_none(|| self.log("Found no branch in environment"));
     }
 
     pub fn guess_branch(&self) -> Option<String> {
@@ -87,21 +83,14 @@ impl App {
     pub fn guess_timestamp(&self) -> Option<String> {
         self.log("Trying to determine timestamp");
         let svn = Svn::new(self);
-        if svn.is_svn() {
-            match svn.timestamp() {
-                Some(timestamp) => return Some(timestamp),
-                None => (),
-            }
-        }
+        let svn_timestamp = svn.timestamp()
+            .if_some(|timestamp| self.log(&format!("Found SVN timestamp {}", timestamp)))
+            .if_none(|| self.log("Found no SVN timestamp"));
 
         let git = Git::new(self);
-        if git.is_git() {
-            match git.head_timestamp() {
-                Some(timestamp) => return Some(timestamp),
-                None => (),
-            }
-        }
-
-        return None;
+        let git_timestamp = git.head_timestamp()
+            .if_some(|timestamp| self.log(&format!("Found Git timestamp {}", timestamp)))
+            .if_none(|| self.log("Found no Git timestamp"));
+        return svn_timestamp.or(git_timestamp);
     }
 }
