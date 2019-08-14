@@ -64,15 +64,18 @@ impl<'a> Git<'a> {
         return self.git(&["--no-pager", "log", "-n1", "--format=%ct000"]);
     }
 
-    fn extract_single_branch(&self, branch_text: &str) -> Option<String> {
+    fn preprocess_branch_text(branch_text: &str) -> Vec<String> {
         let lines = branch_text.lines();
         let branch_regex = Regex::new("^\\s*[*]\\s*").unwrap();
 
-        let branches: Vec<String> = lines
+        return lines
             .map(|line| branch_regex.replace_all(line.trim(), "").to_string())
             .filter(|branch| !branch.contains("HEAD detached"))
             .collect();
+    }
 
+    fn extract_single_branch(&self, branch_text: &str) -> Option<String> {
+        let branches = Git::preprocess_branch_text(branch_text);
         match branches.len() {
             0 => {
                 self.app.log("Found no branches in the Git repo that contain the HEAD commit");
@@ -82,7 +85,7 @@ impl<'a> Git<'a> {
                 self.app.log(&format!("Found exactly one branch in the Git repo that contains the HEAD commit: {}",
                                       branches.first().unwrap()));
                 return branches.first().map(|branch| branch.to_string());
-            },
+            }
             _ => {
                 self.app.log(&format!("Found more than one branch in the Git repo that contains the HEAD commit: {}",
                                       branches.join(", ")));
@@ -100,5 +103,18 @@ impl<'a> Git<'a> {
         }
         let opt_branches = self.git(&["branch", "--contains"]);
         return opt_branches.and_then(|branch_text| self.extract_single_branch(&branch_text));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_preprocess_branch_text() {
+        assert_eq!(["master"], Git::preprocess_branch_text("master").as_slice());
+        assert_eq!(["master"], Git::preprocess_branch_text("* master").as_slice());
+        assert_eq!(["master", "branch"], Git::preprocess_branch_text("* master\nbranch").as_slice());
+        assert_eq!(["master"], Git::preprocess_branch_text("* (HEAD detached at 6f9a90e36e6)\nmaster\n").as_slice());
     }
 }

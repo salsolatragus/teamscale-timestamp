@@ -111,13 +111,13 @@ mod tests {
 
     #[test]
     fn test_extract_branch_from_url() {
-        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/trunk/something"), Some("trunk".to_string()));
-        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/trunk"), Some("trunk".to_string()));
-        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/branches/foo/something"), Some("foo".to_string()));
-        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/tags/bar/"), Some("bar".to_string()));
-        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/unrelated"), None);
-        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/trunkate"), None);
-        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/branching/blue"), None);
+        assert_eq!(Some("trunk".to_string()), Svn::extract_branch_from_url("https://svn.com/repo/trunk/something"));
+        assert_eq!(Some("trunk".to_string()), Svn::extract_branch_from_url("https://svn.com/repo/trunk"));
+        assert_eq!(Some("foo".to_string()), Svn::extract_branch_from_url("https://svn.com/repo/branches/foo/something"));
+        assert_eq!(Some("bar".to_string()), Svn::extract_branch_from_url("https://svn.com/repo/tags/bar/"));
+        assert_eq!(None, Svn::extract_branch_from_url("https://svn.com/repo/unrelated"));
+        assert_eq!(None, Svn::extract_branch_from_url("https://svn.com/repo/trunkate"));
+        assert_eq!(None, Svn::extract_branch_from_url("https://svn.com/repo/branching/blue"));
     }
 
 }
