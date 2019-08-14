@@ -1,9 +1,8 @@
 extern crate chrono;
 extern crate regex;
 
-use std::process::Command;
-
 use crate::app::App;
+use crate::utils::run;
 
 use self::chrono::DateTime;
 use self::regex::Regex;
@@ -21,26 +20,13 @@ impl<'a> Svn<'a> {
     /// Runs SVN with the given arguments and returns the result if the command succeeded.
     fn svn(&self, args: &[&str]) -> Option<String> {
         self.app.log(&format!("Running svn {}", args.join(" ")));
-
-        let opt_output = Command::new("svn")
-            .env("LANG", "C")
-            .args(args)
-            .output();
-
-        match opt_output {
-            Ok(output) => {
-                if !output.status.success() {
-                    self.app.log(&format!("svn {} failed with exit code {}", args.join(" "),
-                                          output.status.code().unwrap_or(-999)));
-                    return None;
-                }
-                return Some(std::str::from_utf8(output.stdout.as_ref()).unwrap().to_string());
-            }
+        return match run("svn", args, |command| command.env("LANG", "C")) {
+            Ok(stdout) => Some(stdout),
             Err(error) => {
-                self.app.log(&format!("svn {} failed: {}", args.join(" "), error.to_string()));
-                return None;
+                self.app.log(&error);
+                None
             }
-        }
+        };
     }
 
     /// Checks if the current directory is part of some SVN repo.
@@ -98,7 +84,7 @@ impl<'a> Svn<'a> {
             Some(url) => {
                 self.app.log(&format!("Trying to parse SVN URL: {}", url));
                 return Svn::extract_branch_from_url(&url);
-            },
+            }
             None => None,
         };
     }
@@ -106,7 +92,6 @@ impl<'a> Svn<'a> {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
 
     #[test]
@@ -119,5 +104,4 @@ mod tests {
         assert_eq!(None, Svn::extract_branch_from_url("https://svn.com/repo/trunkate"));
         assert_eq!(None, Svn::extract_branch_from_url("https://svn.com/repo/branching/blue"));
     }
-
 }

@@ -1,8 +1,7 @@
 extern crate regex;
 
-use std::process::Command;
-
 use crate::app::App;
+use crate::utils::run;
 
 use self::regex::Regex;
 
@@ -19,25 +18,13 @@ impl<'a> Git<'a> {
     /// Runs git with the given arguments and returns the result if the git command succeeded.
     fn git(&self, args: &[&str]) -> Option<String> {
         self.app.log(&format!("Running git {}", args.join(" ")));
-
-        let opt_output = Command::new("git")
-            .args(args)
-            .output();
-
-        match opt_output {
-            Ok(output) => {
-                if !output.status.success() {
-                    self.app.log(&format!("git {} failed with exit code {}", args.join(" "),
-                                          output.status.code().unwrap_or(-999)));
-                    return None;
-                }
-                return Some(std::str::from_utf8(output.stdout.as_ref()).unwrap().to_string());
-            }
+        return match run("git", args, |command| command) {
+            Ok(stdout) => Some(stdout),
             Err(error) => {
-                self.app.log(&format!("git {} failed: {}", args.join(" "), error.to_string()));
-                return None;
+                self.app.log(&error);
+                None
             }
-        }
+        };
     }
 
     /// Checks if the current directory is part of some Git repo.
