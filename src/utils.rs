@@ -55,14 +55,17 @@ mod test {
     #[test]
     fn test_run() {
         if cfg!(windows) {
+            // TODO fails https://travis-ci.com/cqse/teamscale-timestamp/jobs/225315441
             let output = run("cmd", &["/?"], |command| command);
-            assert!(output.is_ok());
-            assert!(output.unwrap().contains("Windows"));
+            assert!(output.is_ok(), "output was not ok: {:?}", output);
+            assert!(output.clone().unwrap().contains("Windows"),
+                    "output did not contain expected text: {:?}", output);
         }
         if cfg!(unix) {
             let output = run("cat", &["--help"], |command| command);
-            assert!(output.is_ok());
-            assert!(output.unwrap().contains("Usage:"));
+            assert!(output.is_ok(), "output was not ok: {:?}", output);
+            assert!(output.clone().unwrap().contains("Usage:"),
+                    "output did not contain expected text: {:?}", output);
 
             assert!(run("false", &[], |command| command).is_err());
         }
