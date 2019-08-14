@@ -129,5 +129,4 @@ mod tests {
         }).guess_branch_from_environment();
         assert_eq!(Some("the-branch".to_string()), branch);
     }
-
 }

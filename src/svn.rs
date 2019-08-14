@@ -69,9 +69,8 @@ impl<'a> Svn<'a> {
         return opt_date.map(|date| format!("{}000", date.timestamp()));
     }
 
-    fn extract_branch_from_url(&self, url: &str) -> Option<String> {
-        self.app.log(&format!("Trying to parse SVN URL: {}", url));
-        let regex = Regex::new("(?:branches|tags)/(?P<branch>[^/]+)|(?P<trunk>trunk)").unwrap();
+    fn extract_branch_from_url(url: &str) -> Option<String> {
+        let regex = Regex::new("/(branches|tags)/(?P<branch>[^/]+)|/(?P<trunk>trunk)(/|$)").unwrap();
         let captures = regex.captures(url)?;
         return match captures.name("branch") {
             Some(capture) => Some(capture.as_str().to_string()),
@@ -86,7 +85,7 @@ impl<'a> Svn<'a> {
     pub fn branch_from_environment(&self) -> Option<String> {
         let environment_result = std::env::var("SVN_URL");
         self.app.log(&format!("$SVN_URL={}", environment_result.clone().unwrap_or("".to_string())));
-        return environment_result.ok().and_then(|url| self.extract_branch_from_url(&url));
+        return environment_result.ok().and_then(|url| Svn::extract_branch_from_url(&url));
     }
 
     /// Extracts the branch from the SVN URL of the current directory.
@@ -95,6 +94,30 @@ impl<'a> Svn<'a> {
             return None;
         }
         let opt_url = self.svn(&["info", "--show-item", "url"]);
-        return opt_url.and_then(|url| self.extract_branch_from_url(&url));
+        return match opt_url {
+            Some(url) => {
+                self.app.log(&format!("Trying to parse SVN URL: {}", url));
+                return Svn::extract_branch_from_url(&url);
+            },
+            None => None,
+        };
     }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn test_extract_branch_from_url() {
+        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/trunk/something"), Some("trunk".to_string()));
+        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/trunk"), Some("trunk".to_string()));
+        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/branches/foo/something"), Some("foo".to_string()));
+        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/tags/bar/"), Some("bar".to_string()));
+        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/unrelated"), None);
+        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/trunkate"), None);
+        assert_eq!(Svn::extract_branch_from_url("https://svn.com/repo/branching/blue"), None);
+    }
+
 }
