@@ -1,7 +1,7 @@
 Small command-line utility for build environments to automatically
 compute the value for the `?t=` REST request parameter Teamscale
 expects when uploading external analysis results (e.g. coverage,
-findings, ...).
+findings, ...)
 
 # Usage
 
@@ -21,7 +21,7 @@ clone alone. Instead, the tool tries to read the checked out branch
 from your build tool. The following build environments are supported:
 
 - TeamCity
-- TFS and Azure Devops
+- TFS and Azure DevOps
 - Jenkins, but only for plugins that set the `BRANCH` or `GIT_BRANCH`
   environment variable
 - CircleCI
