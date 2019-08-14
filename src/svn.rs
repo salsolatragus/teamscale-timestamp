@@ -1,13 +1,12 @@
-extern crate regex;
 extern crate chrono;
+extern crate regex;
 
 use std::process::Command;
 
 use crate::app::App;
-use crate::utils::StrFromOutput;
 
-use self::regex::Regex;
 use self::chrono::DateTime;
+use self::regex::Regex;
 
 /// Struct for retrieving info from an SVN repo.
 pub struct Svn<'a> {
@@ -15,7 +14,6 @@ pub struct Svn<'a> {
 }
 
 impl<'a> Svn<'a> {
-
     pub fn new(app: &'a App) -> Svn<'a> {
         return Svn { app };
     }
@@ -24,18 +22,25 @@ impl<'a> Svn<'a> {
     fn svn(&self, args: &[&str]) -> Option<String> {
         self.app.log(&format!("Running svn {}", args.join(" ")));
 
-        let result = Command::new("svn")
+        let opt_output = Command::new("svn")
             .env("LANG", "C")
             .args(args)
-            .output()
-            .map_to_stdout();
+            .output();
 
-        match &result {
-            Err(error) => self.app.log(&format!("svn {} failed: {}", args.join(" "), error.to_string())),
-            _ => (),
+        match opt_output {
+            Ok(output) => {
+                if !output.status.success() {
+                    self.app.log(&format!("svn {} failed with exit code {}", args.join(" "),
+                                          output.status.code().unwrap_or(-999)));
+                    return None;
+                }
+                return Some(std::str::from_utf8(output.stdout.as_ref()).unwrap().to_string());
+            }
+            Err(error) => {
+                self.app.log(&format!("svn {} failed: {}", args.join(" "), error.to_string()));
+                return None;
+            }
         }
-
-        return result.ok();
     }
 
     /// Checks if the current directory is part of some SVN repo.
@@ -74,7 +79,7 @@ impl<'a> Svn<'a> {
                 Some(_) => Some("trunk".to_string()),
                 _ => None,
             },
-        }
+        };
     }
 
     /// Tries to read the SVN branch form environment variables.

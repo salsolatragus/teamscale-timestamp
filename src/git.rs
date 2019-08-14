@@ -3,7 +3,6 @@ extern crate regex;
 use std::process::Command;
 
 use crate::app::App;
-use crate::utils::StrFromOutput;
 
 use self::regex::Regex;
 
@@ -21,17 +20,24 @@ impl<'a> Git<'a> {
     fn git(&self, args: &[&str]) -> Option<String> {
         self.app.log(&format!("Running git {}", args.join(" ")));
 
-        let result = Command::new("git")
+        let opt_output = Command::new("git")
             .args(args)
-            .output()
-            .map_to_stdout();
+            .output();
 
-        match &result {
-            Err(error) => self.app.log(&format!("git {} failed: {}", args.join(" "), error.to_string())),
-            _ => (),
+        match opt_output {
+            Ok(output) => {
+                if !output.status.success() {
+                    self.app.log(&format!("git {} failed with exit code {}", args.join(" "),
+                                          output.status.code().unwrap_or(-999)));
+                    return None;
+                }
+                return Some(std::str::from_utf8(output.stdout.as_ref()).unwrap().to_string());
+            }
+            Err(error) => {
+                self.app.log(&format!("git {} failed: {}", args.join(" "), error.to_string()));
+                return None;
+            }
         }
-
-        return result.ok();
     }
 
     /// Checks if the current directory is part of some Git repo.
