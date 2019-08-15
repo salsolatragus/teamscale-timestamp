@@ -7,7 +7,8 @@ os:
 script:
   - cargo test --verbose
   - cargo build --verbose --release
-after_success:
+before_deploy:
+  - pwd || true;
   - |
     mkdir -p deploy
     [ -e target/release/teamscale-timestamp ] && cp target/release/teamscale-timestamp deploy
@@ -15,7 +16,8 @@ after_success:
     cd deploy
     [ -e teamscale-timestamp ] && zip linux.zip teamscale-timestamp
     [ -e teamscale-timestamp.exe ] && zip windows.zip teamscale-timestamp.exe
-before_deploy:
+    cd ..
+  - pwd || true;
   - ls -altr deploy || true;
 deploy:
   provider: releases
