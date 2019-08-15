@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/cqse/teamscale-timestamp.svg?branch=master)](https://travis-ci.com/cqse/teamscale-timestamp)
+
 Small command-line utility for build environments to automatically
 compute the value for the `?t=` REST request parameter Teamscale
 expects when uploading external analysis results (e.g. coverage,
