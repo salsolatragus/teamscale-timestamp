@@ -12,8 +12,7 @@ deploy:
   api_key:
     secure: Zj4bJRO+bOyxrpGMnfvsIjU3qvfryCAMVendcvqxS1uyB45HDsBR6VcVM7fh3aP9IfZ9cJ4/Y8XSr8bbYiJ30tycQ+DL5eMP/ITKQe1848s1xg8XzKoyq0P80GU7+DcicsECBq0xpgJsNPLl0/Fe2WVW7rPS5BeZZigEAH5qq4JqLXUwISiF6Wj2IJ1S6ebxAjbX+5zQzpVT8T94q5QWPKgG0ptvY03I2fxBpi1YWWC4lbGnnNvXg1T4WZIvnEBXPCkSGJrfhhklRP8ATs0ex3QSFX/AVueuayY4pA7ZugxqBqGnSKa58acZyQY9uN8B4tpCzJ6OLSEYpUJzSXh85XwBCLkL+sDEr42M6atAl1vN7ZdbbnP6wLOQlb76qbIgmXgnhId5uSjGm8yeCxhLZnqoiyw/FozN9dhH3dcBaA/lkc29gSBlce+Lf/aaldsTHnJXDmLPpBYtJDWiPEzzzxYqH9p/1WRxFYGwM0zuvFKFURGVWAeRNIkLcxO2ay6wN6CL4Eiq5j/ILLL45JBR7c4PrY9tubQa5lZm1ASX+rJNzcYVOaE/rnOZM3oe3ue7w59dfzkg2JePZOWqiVMVxfeInHdZGrHx+zEdGDDdpFbAhNgNvGpLT62ZHZ+CksGiexxHMi4mIW/ldoqZtx48MuR+yZDMCrHNZV6Pk1oZwCI=
   file:
-    - target/release/teamscale-timestamp
-    - target/release/teamscale-timestamp.exe
+    - target/release/teamscale-timestamp*
   on:
     tags: true
     repo: cqse/teamscale-timestamp
