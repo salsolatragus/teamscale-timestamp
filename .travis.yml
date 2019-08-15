@@ -7,6 +7,11 @@ os:
 script:
   - cargo test --verbose
   - cargo build --verbose --release
+  - |
+    echo "---> running teamscale-timestamp to see if it works in TravisCI"
+    echo "---------------------------------------------------------------"
+    target/release/teamscale-timestamp
+    echo "---------------------------------------------------------------"
 before_deploy:
   - pwd || true;
   - |
