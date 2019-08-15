@@ -20,7 +20,7 @@ before_deploy:
     [ -e target/release/teamscale-timestamp.exe ] && cp target/release/teamscale-timestamp.exe deploy
     cd deploy
     [ -e teamscale-timestamp ] && zip linux.zip teamscale-timestamp
-    [ -e teamscale-timestamp.exe ] && zip windows.zip teamscale-timestamp.exe
+    [ -e teamscale-timestamp.exe ] && 7z a windows.zip teamscale-timestamp.exe
     cd ..
   - pwd || true;
   - ls -altr deploy || true;
