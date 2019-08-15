@@ -45,14 +45,25 @@ impl<'a> Svn<'a> {
         }
     }
 
+    fn svn_date_string_to_timestamp(date_string: &str) -> Option<i64> {
+        return DateTime::parse_from_rfc3339(date_string).map(|date| date.timestamp()).ok();
+    }
+
     /// Returns the TS timestamp for the currently checked out revision.
     pub fn timestamp(&self) -> Option<String> {
         if !self.is_svn() {
             return None;
         }
-        let opt_date_string = self.svn(&["info", "--show-item", "last-changed-date"]);
-        let opt_date = opt_date_string.and_then(|date_string| DateTime::parse_from_rfc3339(&date_string).ok());
-        return opt_date.map(|date| format!("{}000", date.timestamp()));
+        let opt_date_string = self.svn(&["info", "--show-item", "last-changed-date"])
+            .map(|string| string.trim().to_string());
+        return match opt_date_string {
+            Some(ref date_string) => {
+                self.app.log(&format!("Read date {} from SVN", date_string));
+                let timestamp = opt_date_string.and_then(|date_string| Svn::svn_date_string_to_timestamp(&date_string));
+                return timestamp.map(|timestamp| format!("{}000", timestamp));
+            },
+            None => None,
+        }
     }
 
     fn extract_branch_from_url(url: &str) -> Option<String> {
@@ -103,5 +114,10 @@ mod tests {
         assert_eq!(None, Svn::extract_branch_from_url("https://svn.com/repo/unrelated"));
         assert_eq!(None, Svn::extract_branch_from_url("https://svn.com/repo/trunkate"));
         assert_eq!(None, Svn::extract_branch_from_url("https://svn.com/repo/branching/blue"));
+    }
+
+    #[test]
+    fn test_date_parsing() {
+        assert_eq!(Some(1565100814), Svn::svn_date_string_to_timestamp("2019-08-06T14:13:34.879966Z"));
     }
 }
