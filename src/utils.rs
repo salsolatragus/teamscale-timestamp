@@ -55,8 +55,7 @@ mod test {
     #[test]
     fn test_run() {
         if cfg!(windows) {
-            // TODO fails https://travis-ci.com/cqse/teamscale-timestamp/jobs/225315441
-            let output = run("cmd", &["/?"], |command| command);
+            let output = run("cmd", &["/c", "echo Windows"], |command| command);
             assert!(output.is_ok(), "output was not ok: {:?}", output);
             assert!(output.clone().unwrap().contains("Windows"),
                     "output did not contain expected text: {:?}", output);
