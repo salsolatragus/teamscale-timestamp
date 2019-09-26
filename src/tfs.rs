@@ -14,10 +14,9 @@ pub struct Tfs<'a> {
 
 #[derive(Deserialize)]
 struct ChangesetResponse {
-    origin: String,
+    #[serde(rename = "createdDate")]
+    created_date: String,
 }
-
-enum TfsError {}
 
 impl<'a> Tfs<'a> {
     pub fn guess_timestamp(&self) -> Option<String> {
@@ -90,5 +89,18 @@ impl<'a> Tfs<'a> {
                 you activated 'Additional options > Allow scripts to access OAuth token' for your \
                 pipeline job! Otherwise, the timestamp for a TFVC changeset cannot be determined.");
         });
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_tfs_response() {
+        let json = r#"{"changesetId":27754,"url":"https://cqse.visualstudio.com/TestData/_apis/tfvc/changesets/27754","author":{"displayName":"CQSE GmbH","url":"https://spsprodweu1.vssps.visualstudio.com/A40e1a985-f6b9-41c2-8e31-7910c058755e/_apis/Identities/fb6b0c50-f0de-4fa2-81d0-550522b54f49","id":"fb6b0c50-f0de-4fa2-81d0-550522b54f49","uniqueName":"microsoft@cqse.eu","imageUrl":"https://cqse.visualstudio.com/_api/_common/identityImage?id=fb6b0c50-f0de-4fa2-81d0-550522b54f49"},"checkedInBy":{"displayName":"CQSE GmbH","url":"https://spsprodweu1.vssps.visualstudio.com/A40e1a985-f6b9-41c2-8e31-7910c058755e/_apis/Identities/fb6b0c50-f0de-4fa2-81d0-550522b54f49","id":"fb6b0c50-f0de-4fa2-81d0-550522b54f49","uniqueName":"microsoft@cqse.eu","imageUrl":"https://cqse.visualstudio.com/_api/_common/identityImage?id=fb6b0c50-f0de-4fa2-81d0-550522b54f49"},"createdDate":"2019-03-10T15:27:14.803Z","comment":"baseless merge v1.5 -> v2","_links":{"self":{"href":"https://cqse.visualstudio.com/TestData/_apis/tfvc/changesets/27754"},"changes":{"href":"https://cqse.visualstudio.com/_apis/tfvc/changesets/27754/changes"},"workItems":{"href":"https://cqse.visualstudio.com/_apis/tfvc/changesets/27754/workItems"},"web":{"href":"https://cqse.visualstudio.com/TestData/_versionControl/changeset/27754"},"author":{"href":"https://spsprodweu1.vssps.visualstudio.com/A40e1a985-f6b9-41c2-8e31-7910c058755e/_apis/Identities/fb6b0c50-f0de-4fa2-81d0-550522b54f49"},"checkedInBy":{"href":"https://spsprodweu1.vssps.visualstudio.com/A40e1a985-f6b9-41c2-8e31-7910c058755e/_apis/Identities/fb6b0c50-f0de-4fa2-81d0-550522b54f49"}}}"#;
+        let changeset: ChangesetResponse = serde_json::from_str(json).unwrap();
+        assert_eq!("2019-03-10T15:27:14.803Z", changeset.created_date);
     }
 }
