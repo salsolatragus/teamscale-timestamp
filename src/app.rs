@@ -43,7 +43,7 @@ impl App {
         return git.guess_branch();
     }
 
-    fn env_variable(&self, name: &str) -> Option<String> {
+    pub fn env_variable(&self, name: &str) -> Option<String> {
         return (self.env_reader)(name)
             .peek_or_default(|value| self.log(&format!("${}={}", name, value)), "".to_string());
     }

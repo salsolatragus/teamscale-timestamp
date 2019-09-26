@@ -34,3 +34,7 @@ from your build tool. The following build environments are supported:
 
 If your environment is not supported, you can manually pass the checked
 out Git branch via the `--branch` command line switch.
+
+# Development
+
+Under Linux, plesae install `libssl-dev` to obtain OpenSSL headers.

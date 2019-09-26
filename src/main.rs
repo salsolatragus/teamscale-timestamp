@@ -10,6 +10,7 @@ mod app;
 mod git;
 mod svn;
 mod utils;
+mod tfs;
 
 fn main() {
     let version = env!("CARGO_PKG_VERSION");
