@@ -24,7 +24,7 @@ impl<'a> Tfs<'a> {
         return Tfs { app };
     }
 
-    pub fn guess_timestamp(&self) -> Option<String> {
+    pub fn timestamp(&self) -> Option<String> {
         let teamproject = self.app.env_variable("SYSTEM_TEAMPROJECTID")?;
         let changeset = self.app.env_variable("BUILD_SOURCEVERSION")?;
         let collection_uri = self

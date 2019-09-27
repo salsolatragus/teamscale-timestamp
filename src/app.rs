@@ -28,7 +28,7 @@ impl App {
         }
     }
 
-    fn guess_branch_from_svn(&self) -> Option<String> {
+    fn branch_from_svn(&self) -> Option<String> {
         self.log("Trying to guess branch name from SVN");
         let svn = Svn::new(self);
         return svn
@@ -51,7 +51,7 @@ impl App {
         );
     }
 
-    fn guess_branch_from_environment(&self) -> Option<String> {
+    fn branch_from_environment(&self) -> Option<String> {
         self.log("Trying to guess branch name from environment variables");
         // common names
         return self
@@ -85,10 +85,10 @@ impl App {
     pub fn guess_branch(&self) -> Option<String> {
         self.log("Trying to determine branch");
         return self
-            .guess_branch_from_svn()
+            .branch_from_svn()
             // since guessing from a git commit is heuristic, we prefer to first check
             // environment variables set by build runners
-            .or(self.guess_branch_from_environment())
+            .or(self.branch_from_environment())
             .or(self.guess_branch_from_git());
     }
 
@@ -108,12 +108,17 @@ impl App {
 
         let tfs = Tfs::new(self);
         let tfs_timestamp = tfs
-            .guess_timestamp()
+            .timestamp()
             .if_some(|timestamp| self.log(&format!("Found TFVC timestamp {}", timestamp)))
             .if_none(|| self.log("Found no TFVC timestamp"));
         return svn_timestamp.or(git_timestamp).or(tfs_timestamp);
     }
 
+    // TODO comments, print helpful errors in case of e.g. not authenticated, tests for that as well
+    // TODO try out in azure devops
+    // TODO refactor code for better error handling and logging with results
+    // TODO support tfs access token as well? would allow testing!
+    // TODO documentation!
     /// Attempts to write revision.txt content to the given file path.
     pub fn write_revision_txt(&self, t: &str, revision_txt_file: &Path) -> std::io::Result<()> {
         let mut file = File::create(revision_txt_file)?;
@@ -128,7 +133,7 @@ mod tests {
 
     #[test]
     fn empty_environment_means_no_branch() {
-        let branch = App::new(true, |_| None).guess_branch_from_environment();
+        let branch = App::new(true, |_| None).branch_from_environment();
         assert_eq!(None, branch);
     }
 
@@ -140,7 +145,7 @@ mod tests {
             }
             return None;
         })
-        .guess_branch_from_environment();
+        .branch_from_environment();
         assert_eq!(Some("the-branch".to_string()), branch);
     }
 }
