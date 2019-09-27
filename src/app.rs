@@ -6,6 +6,7 @@ use std::string::String;
 
 use crate::git::Git;
 use crate::svn::Svn;
+use crate::tfs::Tfs;
 use crate::utils::PeekOption;
 
 pub struct App {
@@ -30,11 +31,11 @@ impl App {
     fn guess_branch_from_svn(&self) -> Option<String> {
         self.log("Trying to guess branch name from SVN");
         let svn = Svn::new(self);
-        return svn.branch()
+        return svn
+            .branch()
             .or(svn.branch_from_environment())
             .if_some(|branch| self.log(&format!("Found SVN branch {}", branch)))
             .if_none(|| self.log("Found no SVN branch"));
-        ;
     }
 
     fn guess_branch_from_git(&self) -> Option<String> {
@@ -44,14 +45,17 @@ impl App {
     }
 
     pub fn env_variable(&self, name: &str) -> Option<String> {
-        return (self.env_reader)(name)
-            .peek_or_default(|value| self.log(&format!("${}={}", name, value)), "".to_string());
+        return (self.env_reader)(name).peek_or_default(
+            |value| self.log(&format!("${}={}", name, value)),
+            "".to_string(),
+        );
     }
 
     fn guess_branch_from_environment(&self) -> Option<String> {
         self.log("Trying to guess branch name from environment variables");
         // common names
-        return self.env_variable("BRANCH")
+        return self
+            .env_variable("BRANCH")
             .or(self.env_variable("branch"))
             .or(self.env_variable("GIT_BRANCH"))
             // TeamCity https://stackoverflow.com/questions/13278615/is-there-a-way-to-access-teamcity-system-properties-in-a-powershell-script
@@ -80,7 +84,8 @@ impl App {
 
     pub fn guess_branch(&self) -> Option<String> {
         self.log("Trying to determine branch");
-        return self.guess_branch_from_svn()
+        return self
+            .guess_branch_from_svn()
             // since guessing from a git commit is heuristic, we prefer to first check
             // environment variables set by build runners
             .or(self.guess_branch_from_environment())
@@ -90,15 +95,23 @@ impl App {
     pub fn guess_timestamp(&self) -> Option<String> {
         self.log("Trying to determine timestamp");
         let svn = Svn::new(self);
-        let svn_timestamp = svn.timestamp()
+        let svn_timestamp = svn
+            .timestamp()
             .if_some(|timestamp| self.log(&format!("Found SVN timestamp {}", timestamp)))
             .if_none(|| self.log("Found no SVN timestamp"));
 
         let git = Git::new(self);
-        let git_timestamp = git.head_timestamp()
+        let git_timestamp = git
+            .head_timestamp()
             .if_some(|timestamp| self.log(&format!("Found Git timestamp {}", timestamp)))
             .if_none(|| self.log("Found no Git timestamp"));
-        return svn_timestamp.or(git_timestamp);
+
+        let tfs = Tfs::new(self);
+        let tfs_timestamp = tfs
+            .guess_timestamp()
+            .if_some(|timestamp| self.log(&format!("Found TFVC timestamp {}", timestamp)))
+            .if_none(|| self.log("Found no TFVC timestamp"));
+        return svn_timestamp.or(git_timestamp).or(tfs_timestamp);
     }
 
     /// Attempts to write revision.txt content to the given file path.
@@ -126,7 +139,8 @@ mod tests {
                 return Some("the-branch".to_string());
             }
             return None;
-        }).guess_branch_from_environment();
+        })
+        .guess_branch_from_environment();
         assert_eq!(Some("the-branch".to_string()), branch);
     }
 }
