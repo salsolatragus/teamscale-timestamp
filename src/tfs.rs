@@ -61,7 +61,11 @@ impl<'a> Tfs<'a> {
     fn request(&self, url: Url, access_token: String) -> Option<Response> {
         let url_string = url.to_string();
 
-        let client = reqwest::Client::new();
+        let client = reqwest::ClientBuilder::new()
+            .danger_accept_invalid_certs(true)
+            .danger_accept_invalid_hostnames(true)
+            .build()
+            .unwrap();
         let result = client
             .get(url)
             .header(AUTHORIZATION, format!("Bearer {}", access_token))
@@ -148,20 +152,5 @@ mod tests {
             Tfs::parse_date("2019-03-10T15:27:14.803-01:00".to_string()),
             Some("1552235234000".to_string())
         );
-    }
-
-    #[test]
-    fn test_accessing_azure_devops_api() {
-        let app = App::new(true, |env_variable| Some("not-needed".to_string()));
-        let tfs = Tfs::new(&app);
-        assert_eq!(
-            tfs.fetch_changeset_creation_date(
-                "https://cqse.visualstudio.com/".to_string(),
-                "TestData".to_string(),
-                "27754".to_string(),
-                "jc6vthfrnu2myipy2nbqdrxwq62qoyy2qbph65onddalu5ixge6a".to_string(),
-            ),
-            Some("1552231634000".to_string())
-        )
     }
 }
