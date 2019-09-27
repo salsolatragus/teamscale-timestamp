@@ -1,8 +1,8 @@
 use std::error::Error;
 
 use chrono::DateTime;
-use reqwest::{Response, Url};
 use reqwest::header::AUTHORIZATION;
+use reqwest::{Response, Url};
 use serde::Deserialize;
 
 use crate::app::App;
@@ -20,10 +20,16 @@ struct ChangesetResponse {
 }
 
 impl<'a> Tfs<'a> {
+    pub fn new(app: &'a App) -> Tfs<'a> {
+        return Tfs { app };
+    }
+
     pub fn guess_timestamp(&self) -> Option<String> {
         let teamproject = self.app.env_variable("SYSTEM_TEAMPROJECTID")?;
         let changeset = self.app.env_variable("BUILD_SOURCEVERSION")?;
-        let collection_uri = self.app.env_variable("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI")?;
+        let collection_uri = self
+            .app
+            .env_variable("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI")?;
 
         let access_token = self.get_access_token()?;
         let url = self.create_changeset_url(collection_uri, teamproject, changeset)?;
@@ -34,17 +40,19 @@ impl<'a> Tfs<'a> {
     }
 
     fn parse_date(date_string: String) -> Option<String> {
-        return DateTime::parse_from_rfc3339(&date_string).map(|date| {
-            format!("{}000", date.timestamp())
-        }).ok();
+        return DateTime::parse_from_rfc3339(&date_string)
+            .map(|date| format!("{}000", date.timestamp()))
+            .ok();
     }
 
     fn parse_response(&self, mut response: Response) -> Option<ChangesetResponse> {
         return match response.json::<ChangesetResponse>() {
             Ok(json) => Some(json),
             Err(error) => {
-                self.app.log(&format!("Failed to parse JSON response from TFS: {}",
-                                      error.description()));
+                self.app.log(&format!(
+                    "Failed to parse JSON response from TFS: {}",
+                    error.description()
+                ));
                 None
             }
         };
@@ -54,13 +62,18 @@ impl<'a> Tfs<'a> {
         let url_string = url.to_string();
 
         let client = reqwest::Client::new();
-        let result = client.get(url)
+        let result = client
+            .get(url)
             .header(AUTHORIZATION, format!("Bearer {}", access_token))
             .send();
         return match result {
             Ok(response) => Some(response),
             Err(error) => {
-                self.app.log(&format!("Request to {} failed: {}", url_string, self.describe_error(&error)));
+                self.app.log(&format!(
+                    "Request to {} failed: {}",
+                    url_string,
+                    self.describe_error(&error)
+                ));
                 None
             }
         };
@@ -71,20 +84,33 @@ impl<'a> Tfs<'a> {
             return format!("Request timed out: {}", error.description());
         }
         return match error.status() {
-            Some(status) => format!("Failed with HTTP status code {}: {}",
-                                    status.as_str(), error.description()),
+            Some(status) => format!(
+                "Failed with HTTP status code {}: {}",
+                status.as_str(),
+                error.description()
+            ),
             None => error.description().to_string(),
         };
     }
 
-    fn create_changeset_url(&self, collection_uri: String, teamproject: String, changeset: String) -> Option<Url> {
-        let url_string = &format!("{}/{}/_apis/tfvc/changesets/{}",
-                                  collection_uri, teamproject, changeset);
+    fn create_changeset_url(
+        &self,
+        collection_uri: String,
+        teamproject: String,
+        changeset: String,
+    ) -> Option<Url> {
+        let url_string = &format!(
+            "{}/{}/_apis/tfvc/changesets/{}",
+            collection_uri, teamproject, changeset
+        );
         return match Url::parse(url_string) {
             Ok(url) => Some(url),
             Err(error) => {
-                self.app.log(&format!("Failed to parse {} as a url: {}", url_string,
-                                      error.description()));
+                self.app.log(&format!(
+                    "Failed to parse {} as a url: {}",
+                    url_string,
+                    error.description()
+                ));
                 None
             }
         };
@@ -92,13 +118,14 @@ impl<'a> Tfs<'a> {
 
     fn get_access_token(&self) -> Option<String> {
         return self.app.env_variable("SYSTEM_ACCESSTOKEN").if_none(|| {
-            self.app.log("Environment variable SYSTEM_ACCESSTOKEN not set. Please make sure \
-                you activated 'Additional options > Allow scripts to access OAuth token' for your \
-                pipeline job! Otherwise, the timestamp for a TFVC changeset cannot be determined.");
+            self.app.log(
+                "Environment variable SYSTEM_ACCESSTOKEN not set. Please make sure \
+                 you activated 'Additional options > Allow scripts to access OAuth token' for your \
+                 pipeline job! Otherwise, the timestamp for a TFVC changeset cannot be determined.",
+            );
         });
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -113,7 +140,28 @@ mod tests {
 
     #[test]
     fn test_parse_timestamp() {
-        assert_eq!(Tfs::parse_date("2019-03-10T15:27:14.803Z".to_string()), Some("1552231634000".to_string()));
-        assert_eq!(Tfs::parse_date("2019-03-10T15:27:14.803-01:00".to_string()), Some("1552235234000".to_string()));
+        assert_eq!(
+            Tfs::parse_date("2019-03-10T15:27:14.803Z".to_string()),
+            Some("1552231634000".to_string())
+        );
+        assert_eq!(
+            Tfs::parse_date("2019-03-10T15:27:14.803-01:00".to_string()),
+            Some("1552235234000".to_string())
+        );
+    }
+
+    #[test]
+    fn test_accessing_azure_devops_api() {
+        let app = App::new(true, |env_variable| Some("not-needed".to_string()));
+        let tfs = Tfs::new(&app);
+        assert_eq!(
+            tfs.fetch_changeset_creation_date(
+                "https://cqse.visualstudio.com/".to_string(),
+                "TestData".to_string(),
+                "27754".to_string(),
+                "jc6vthfrnu2myipy2nbqdrxwq62qoyy2qbph65onddalu5ixge6a".to_string(),
+            ),
+            Some("1552231634000".to_string())
+        )
     }
 }
