@@ -1,5 +1,6 @@
 use std::error::Error;
 
+use chrono::DateTime;
 use reqwest::{Response, Url};
 use reqwest::header::AUTHORIZATION;
 use serde::Deserialize;
@@ -28,8 +29,14 @@ impl<'a> Tfs<'a> {
         let url = self.create_changeset_url(collection_uri, teamproject, changeset)?;
 
         let response = self.request(url, access_token)?;
-        let changeset_response = self.parse_response(response);
-        None
+        let changeset_response = self.parse_response(response)?;
+        return Tfs::parse_date(changeset_response.created_date);
+    }
+
+    fn parse_date(date_string: String) -> Option<String> {
+        return DateTime::parse_from_rfc3339(&date_string).map(|date| {
+            format!("{}000", date.timestamp())
+        }).ok();
     }
 
     fn parse_response(&self, mut response: Response) -> Option<ChangesetResponse> {
@@ -40,7 +47,7 @@ impl<'a> Tfs<'a> {
                                       error.description()));
                 None
             }
-        }
+        };
     }
 
     fn request(&self, url: Url, access_token: String) -> Option<Response> {
@@ -101,6 +108,12 @@ mod tests {
     fn test_parse_tfs_response() {
         let json = r#"{"changesetId":27754,"url":"https://cqse.visualstudio.com/TestData/_apis/tfvc/changesets/27754","author":{"displayName":"CQSE GmbH","url":"https://spsprodweu1.vssps.visualstudio.com/A40e1a985-f6b9-41c2-8e31-7910c058755e/_apis/Identities/fb6b0c50-f0de-4fa2-81d0-550522b54f49","id":"fb6b0c50-f0de-4fa2-81d0-550522b54f49","uniqueName":"microsoft@cqse.eu","imageUrl":"https://cqse.visualstudio.com/_api/_common/identityImage?id=fb6b0c50-f0de-4fa2-81d0-550522b54f49"},"checkedInBy":{"displayName":"CQSE GmbH","url":"https://spsprodweu1.vssps.visualstudio.com/A40e1a985-f6b9-41c2-8e31-7910c058755e/_apis/Identities/fb6b0c50-f0de-4fa2-81d0-550522b54f49","id":"fb6b0c50-f0de-4fa2-81d0-550522b54f49","uniqueName":"microsoft@cqse.eu","imageUrl":"https://cqse.visualstudio.com/_api/_common/identityImage?id=fb6b0c50-f0de-4fa2-81d0-550522b54f49"},"createdDate":"2019-03-10T15:27:14.803Z","comment":"baseless merge v1.5 -> v2","_links":{"self":{"href":"https://cqse.visualstudio.com/TestData/_apis/tfvc/changesets/27754"},"changes":{"href":"https://cqse.visualstudio.com/_apis/tfvc/changesets/27754/changes"},"workItems":{"href":"https://cqse.visualstudio.com/_apis/tfvc/changesets/27754/workItems"},"web":{"href":"https://cqse.visualstudio.com/TestData/_versionControl/changeset/27754"},"author":{"href":"https://spsprodweu1.vssps.visualstudio.com/A40e1a985-f6b9-41c2-8e31-7910c058755e/_apis/Identities/fb6b0c50-f0de-4fa2-81d0-550522b54f49"},"checkedInBy":{"href":"https://spsprodweu1.vssps.visualstudio.com/A40e1a985-f6b9-41c2-8e31-7910c058755e/_apis/Identities/fb6b0c50-f0de-4fa2-81d0-550522b54f49"}}}"#;
         let changeset: ChangesetResponse = serde_json::from_str(json).unwrap();
-        assert_eq!("2019-03-10T15:27:14.803Z", changeset.created_date);
+        assert_eq!(changeset.created_date, "2019-03-10T15:27:14.803Z");
+    }
+
+    #[test]
+    fn test_parse_timestamp() {
+        assert_eq!(Tfs::parse_date("2019-03-10T15:27:14.803Z".to_string()), Some("1552231634000".to_string()));
+        assert_eq!(Tfs::parse_date("2019-03-10T15:27:14.803-01:00".to_string()), Some("1552235234000".to_string()));
     }
 }
