@@ -1,4 +1,7 @@
 use std::error::Error;
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::io::Read;
 
 use chrono::DateTime;
 use reqwest::header::AUTHORIZATION;
@@ -19,46 +22,51 @@ struct ChangesetResponse {
     created_date: String,
 }
 
+type TfsResult<T> = std::result::Result<T, TfsError>;
+
 impl<'a> Tfs<'a> {
     pub fn new(app: &'a App) -> Tfs<'a> {
         return Tfs { app };
     }
 
+    // TODO (FS) should be result
     pub fn timestamp(&self) -> Option<String> {
         let teamproject = self.app.env_variable("SYSTEM_TEAMPROJECTID")?;
         let changeset = self.app.env_variable("BUILD_SOURCEVERSION")?;
         let collection_uri = self
             .app
             .env_variable("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI")?;
+        self.timestamp_or_error(teamproject, changeset, collection_uri)
+            .ok()
+    }
 
+    fn timestamp_or_error(
+        &self,
+        teamproject: String,
+        changeset: String,
+        collection_uri: String,
+    ) -> TfsResult<String> {
         let access_token = self.get_access_token()?;
-        let url = self.create_changeset_url(collection_uri, teamproject, changeset)?;
-
+        let url = self.create_changeset_url(collection_uri, teamproject, changeset);
         let response = self.request(url, access_token)?;
         let changeset_response = self.parse_response(response)?;
         return Tfs::parse_date(changeset_response.created_date);
     }
 
-    fn parse_date(date_string: String) -> Option<String> {
+    fn parse_date(date_string: String) -> TfsResult<String> {
         return DateTime::parse_from_rfc3339(&date_string)
             .map(|date| format!("{}000", date.timestamp()))
-            .ok();
+            .map_err(|error| TfsError::InvalidDate(error, date_string));
     }
 
-    fn parse_response(&self, mut response: Response) -> Option<ChangesetResponse> {
-        return match response.json::<ChangesetResponse>() {
-            Ok(json) => Some(json),
-            Err(error) => {
-                self.app.log(&format!(
-                    "Failed to parse JSON response from TFS: {}",
-                    error.description()
-                ));
-                None
-            }
-        };
+    fn parse_response(&self, mut response: Response) -> TfsResult<ChangesetResponse> {
+        let mut string = String::new();
+        response.read_to_string(&mut string);
+        return serde_json::from_str::<ChangesetResponse>(&string)
+            .map_err(|error| TfsError::JsonParseFailed(error, string));
     }
 
-    fn request(&self, url: Url, access_token: String) -> Option<Response> {
+    fn request(&self, url: Url, access_token: String) -> TfsResult<Response> {
         let url_string = url.to_string();
 
         let client = reqwest::ClientBuilder::new()
@@ -66,35 +74,11 @@ impl<'a> Tfs<'a> {
             .danger_accept_invalid_hostnames(true)
             .build()
             .unwrap();
-        let result = client
+        let response = client
             .get(url)
             .header(AUTHORIZATION, format!("Bearer {}", access_token))
-            .send();
-        return match result {
-            Ok(response) => Some(response),
-            Err(error) => {
-                self.app.log(&format!(
-                    "Request to {} failed: {}",
-                    url_string,
-                    self.describe_error(&error)
-                ));
-                None
-            }
-        };
-    }
-
-    fn describe_error(&self, error: &reqwest::Error) -> String {
-        if error.is_timeout() {
-            return format!("Request timed out: {}", error.description());
-        }
-        return match error.status() {
-            Some(status) => format!(
-                "Failed with HTTP status code {}: {}",
-                status.as_str(),
-                error.description()
-            ),
-            None => error.description().to_string(),
-        };
+            .send()?;
+        Ok(response)
     }
 
     fn create_changeset_url(
@@ -102,32 +86,107 @@ impl<'a> Tfs<'a> {
         collection_uri: String,
         teamproject: String,
         changeset: String,
-    ) -> Option<Url> {
+    ) -> Url {
         let url_string = &format!(
             "{}/{}/_apis/tfvc/changesets/{}",
             collection_uri, teamproject, changeset
         );
-        return match Url::parse(url_string) {
-            Ok(url) => Some(url),
-            Err(error) => {
-                self.app.log(&format!(
-                    "Failed to parse {} as a url: {}",
-                    url_string,
-                    error.description()
-                ));
-                None
-            }
-        };
+        return Url::parse(url_string).unwrap();
     }
 
-    fn get_access_token(&self) -> Option<String> {
-        return self.app.env_variable("SYSTEM_ACCESSTOKEN").if_none(|| {
-            self.app.log(
+    fn get_access_token(&self) -> TfsResult<String> {
+        return self
+            .app
+            .env_variable("SYSTEM_ACCESSTOKEN")
+            .ok_or(TfsError::AccessTokenNotProvided());
+    }
+}
+
+#[derive(Debug)]
+enum TfsError {
+    JsonParseFailed(serde_json::error::Error, String),
+    RequestTimedOut(reqwest::Error),
+    TfsServerError(reqwest::Error),
+    AccessTokenNotProvided(),
+    InvalidAccessToken(),
+    OtherRequestError(reqwest::Error),
+    InvalidDate(chrono::format::ParseError, String),
+}
+
+impl Display for TfsError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        match self {
+            TfsError::JsonParseFailed(cause, json) => write!(
+                f,
+                "Failed to parse JSON response from TFS: {}. Original response: {}",
+                cause, json
+            ),
+            TfsError::RequestTimedOut(cause) => {
+                write!(f, "Request to {} timed out: {}", cause.safe_url(), cause)
+            }
+            TfsError::TfsServerError(cause) => write!(
+                f,
+                "TFS returned error for request to {}: {}",
+                cause.safe_url(),
+                cause
+            ),
+            // TODO (FS) status!
+            TfsError::OtherRequestError(cause) => {
+                write!(f, "Request to {} failed: {}", cause.safe_url(), cause)
+            }
+            TfsError::AccessTokenNotProvided() => write!(
+                f,
                 "Environment variable SYSTEM_ACCESSTOKEN not set. Please make sure \
-                 you activated 'Additional options > Allow scripts to access OAuth token' for your \
-                 pipeline job! Otherwise, the timestamp for a TFVC changeset cannot be determined.",
-            );
-        });
+                 you activated 'Additional options > Allow scripts to access OAuth token' for \
+                 your pipeline job! Otherwise, the timestamp for a TFVC changeset cannot be \
+                 determined."
+            ),
+            TfsError::InvalidAccessToken() => write!(
+                f,
+                "The access token provided via the environment variable \
+                 SYSTEM_ACCESSTOKEN was not accepted by the TFS. Please make sure you activated \
+                 'Additional options > Allow scripts to access OAuth token' for your pipeline \
+                 job, which will set the correct SYSTEM_ACCESSTOKEN environmen tvariable! \
+                 Otherwise, the timestamp for a TFVC changeset cannot be determined"
+            ),
+            TfsError::InvalidDate(cause, date_string) => {
+                write!(f, "TFS returned unparsable date {}: {}", date_string, cause)
+            }
+        }
+    }
+}
+
+trait SafeUrl {
+    fn safe_url(&self) -> String;
+}
+
+impl SafeUrl for reqwest::Error {
+    fn safe_url(&self) -> String {
+        return self.url().map_or("<no URL>".to_string(), Url::to_string);
+    }
+}
+
+impl Error for TfsError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        return match self {
+            TfsError::JsonParseFailed(cause, _) => Some(cause),
+            TfsError::RequestTimedOut(cause) => Some(cause),
+            TfsError::TfsServerError(cause) => Some(cause),
+            TfsError::OtherRequestError(cause) => Some(cause),
+            _ => None,
+        };
+    }
+}
+
+impl From<reqwest::Error> for TfsError {
+    fn from(error: reqwest::Error) -> Self {
+        if error.is_timeout() {
+            return TfsError::RequestTimedOut(error);
+        }
+        if error.is_server_error() {
+            return TfsError::TfsServerError(error);
+        }
+        return TfsError::OtherRequestError(error);
     }
 }
 
@@ -145,11 +204,11 @@ mod tests {
     #[test]
     fn test_parse_timestamp() {
         assert_eq!(
-            Tfs::parse_date("2019-03-10T15:27:14.803Z".to_string()),
+            Tfs::parse_date("2019-03-10T15:27:14.803Z".to_string()).ok(),
             Some("1552231634000".to_string())
         );
         assert_eq!(
-            Tfs::parse_date("2019-03-10T15:27:14.803-01:00".to_string()),
+            Tfs::parse_date("2019-03-10T15:27:14.803-01:00".to_string()).ok(),
             Some("1552235234000".to_string())
         );
     }

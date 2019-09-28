@@ -119,6 +119,7 @@ impl App {
     // TODO refactor code for better error handling and logging with results
     // TODO support tfs access token as well? would allow testing!
     // TODO documentation!
+    // TODO document rust-format requirement when developing
     /// Attempts to write revision.txt content to the given file path.
     pub fn write_revision_txt(&self, t: &str, revision_txt_file: &Path) -> std::io::Result<()> {
         let mut file = File::create(revision_txt_file)?;
