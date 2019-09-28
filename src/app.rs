@@ -5,6 +5,7 @@ use std::path::Path;
 use std::string::String;
 
 use crate::git::Git;
+use crate::logger::Logger;
 use crate::svn::Svn;
 use crate::tfs::Tfs;
 use crate::utils::PeekOption;
@@ -20,12 +21,6 @@ impl App {
             verbose,
             env_reader,
         };
-    }
-
-    pub fn log(&self, message: &str) {
-        if self.verbose {
-            println!("{}", message)
-        }
     }
 
     fn branch_from_svn(&self) -> Option<String> {
@@ -125,6 +120,17 @@ impl App {
         let mut file = File::create(revision_txt_file)?;
         file.write_all(format!("timestamp: {}", t).as_ref())?;
         return Ok(());
+    }
+}
+
+impl Logger for App {
+    fn log<S>(&self, message: S)
+    where
+        S: Into<String>,
+    {
+        if self.verbose {
+            println!("{}", message.into())
+        }
     }
 }
 

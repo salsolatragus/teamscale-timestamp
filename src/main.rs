@@ -5,12 +5,14 @@ use std::path::Path;
 use clap::Arg;
 
 use crate::app::App;
+use crate::logger::Logger;
 
 mod app;
 mod git;
+mod logger;
 mod svn;
-mod utils;
 mod tfs;
+mod utils;
 
 fn main() {
     let version = env!("CARGO_PKG_VERSION");
@@ -41,11 +43,17 @@ fn main() {
                 code branch + timestamp."))
         .get_matches();
 
-    let app = App::new(matches.is_present("verbose"), |variable| std::env::var(variable).ok());
-    app.log(&format!("teamscale-timestamp v{} trying to determine branch + timestamp for an external upload",
-                     version));
+    let app = App::new(matches.is_present("verbose"), |variable| {
+        std::env::var(variable).ok()
+    });
+    app.log(&format!(
+        "teamscale-timestamp v{} trying to determine branch + timestamp for an external upload",
+        version
+    ));
 
-    let opt_branch = matches.value_of("branch").map(|branch| branch.to_string())
+    let opt_branch = matches
+        .value_of("branch")
+        .map(|branch| branch.to_string())
         .or_else(|| app.guess_branch());
     let opt_timestamp = app.guess_timestamp();
 
@@ -54,7 +62,10 @@ fn main() {
         bug report to support@teamscale.com";
 
     match opt_branch {
-        None => panic!("Couldn't resolve the branch. Try manually passing the branch with --branch. {}", debug_help),
+        None => panic!(
+            "Couldn't resolve the branch. Try manually passing the branch with --branch. {}",
+            debug_help
+        ),
         Some(branch) => match opt_timestamp {
             None => panic!("Couldn't resolve the timestamp. {}", debug_help),
             Some(timestamp) => output(&app, branch, timestamp, matches.value_of("revfile")),
@@ -65,11 +76,16 @@ fn main() {
 fn output(app: &App, branch: String, timestamp: String, opt_revision_txt: Option<&str>) {
     match opt_revision_txt {
         Some(revision_text) => {
-            let result = app.write_revision_txt(&format!("{}:{}", branch, timestamp),
-                                                Path::new(revision_text));
+            let result = app.write_revision_txt(
+                &format!("{}:{}", branch, timestamp),
+                Path::new(revision_text),
+            );
             match result {
-                Err(error) => panic!("Could not write timestamp to file {}: {}", revision_text,
-                                     error.to_string()),
+                Err(error) => panic!(
+                    "Could not write timestamp to file {}: {}",
+                    revision_text,
+                    error.to_string()
+                ),
                 _ => (),
             }
         }

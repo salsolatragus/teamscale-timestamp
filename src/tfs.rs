@@ -9,7 +9,7 @@ use reqwest::{Response, Url};
 use serde::Deserialize;
 
 use crate::app::App;
-use crate::utils::PeekOption;
+use crate::logger::Logger;
 
 /// Struct for retrieving info from a TFVC repo.
 pub struct Tfs<'a> {
@@ -29,15 +29,19 @@ impl<'a> Tfs<'a> {
         return Tfs { app };
     }
 
-    // TODO (FS) should be result
     pub fn timestamp(&self) -> Option<String> {
         let teamproject = self.app.env_variable("SYSTEM_TEAMPROJECTID")?;
         let changeset = self.app.env_variable("BUILD_SOURCEVERSION")?;
         let collection_uri = self
             .app
             .env_variable("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI")?;
-        self.timestamp_or_error(teamproject, changeset, collection_uri)
-            .ok()
+        return match self.timestamp_or_error(teamproject, changeset, collection_uri) {
+            Ok(timestamp) => Some(timestamp),
+            Err(error) => {
+                self.app.log(&format!("{}", error));
+                None
+            }
+        };
     }
 
     fn timestamp_or_error(
@@ -61,14 +65,14 @@ impl<'a> Tfs<'a> {
 
     fn parse_response(&self, mut response: Response) -> TfsResult<ChangesetResponse> {
         let mut string = String::new();
-        response.read_to_string(&mut string);
+        response
+            .read_to_string(&mut string)
+            .map_err(TfsError::CannotReadRequest)?;
         return serde_json::from_str::<ChangesetResponse>(&string)
             .map_err(|error| TfsError::JsonParseFailed(error, string));
     }
 
     fn request(&self, url: Url, access_token: String) -> TfsResult<Response> {
-        let url_string = url.to_string();
-
         let client = reqwest::ClientBuilder::new()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
@@ -106,6 +110,7 @@ impl<'a> Tfs<'a> {
 enum TfsError {
     JsonParseFailed(serde_json::error::Error, String),
     RequestTimedOut(reqwest::Error),
+    CannotReadRequest(std::io::Error),
     TfsServerError(reqwest::Error),
     AccessTokenNotProvided(),
     InvalidAccessToken(),
@@ -130,10 +135,13 @@ impl Display for TfsError {
                 cause.safe_url(),
                 cause
             ),
-            // TODO (FS) status!
-            TfsError::OtherRequestError(cause) => {
-                write!(f, "Request to {} failed: {}", cause.safe_url(), cause)
-            }
+            TfsError::OtherRequestError(cause) => write!(
+                f,
+                "Request to {} failed with HTTP status code {}: {}",
+                cause.safe_url(),
+                cause.safe_status(),
+                cause
+            ),
             TfsError::AccessTokenNotProvided() => write!(
                 f,
                 "Environment variable SYSTEM_ACCESSTOKEN not set. Please make sure \
@@ -152,17 +160,27 @@ impl Display for TfsError {
             TfsError::InvalidDate(cause, date_string) => {
                 write!(f, "TFS returned unparsable date {}: {}", date_string, cause)
             }
+            TfsError::CannotReadRequest(cause) => {
+                write!(f, "Failed to read request body: {}", cause)
+            }
         }
     }
 }
 
-trait SafeUrl {
+trait SafeRequestErrorProps {
     fn safe_url(&self) -> String;
+    fn safe_status(&self) -> String;
 }
 
-impl SafeUrl for reqwest::Error {
+impl SafeRequestErrorProps for reqwest::Error {
     fn safe_url(&self) -> String {
         return self.url().map_or("<no URL>".to_string(), Url::to_string);
+    }
+
+    fn safe_status(&self) -> String {
+        return self
+            .status()
+            .map_or("<no HTTP status>".to_string(), |status| status.to_string());
     }
 }
 

@@ -1,6 +1,7 @@
 extern crate regex;
 
 use crate::app::App;
+use crate::logger::Logger;
 use crate::utils::run;
 
 use self::regex::Regex;
@@ -65,17 +66,22 @@ impl<'a> Git<'a> {
         let branches = Git::preprocess_branch_text(branch_text);
         match branches.len() {
             0 => {
-                self.app.log("Found no branches in the Git repo that contain the HEAD commit");
+                self.app
+                    .log("Found no branches in the Git repo that contain the HEAD commit");
                 return None;
             }
             1 => {
-                self.app.log(&format!("Found exactly one branch in the Git repo that contains the HEAD commit: {}",
-                                      branches.first().unwrap()));
+                self.app.log(&format!(
+                    "Found exactly one branch in the Git repo that contains the HEAD commit: {}",
+                    branches.first().unwrap()
+                ));
                 return branches.first().map(|branch| branch.to_string());
             }
             _ => {
-                self.app.log(&format!("Found more than one branch in the Git repo that contains the HEAD commit: {}",
-                                      branches.join(", ")));
+                self.app.log(&format!(
+                    "Found more than one branch in the Git repo that contains the HEAD commit: {}",
+                    branches.join(", ")
+                ));
                 return None;
             }
         }
@@ -100,8 +106,17 @@ mod tests {
     #[test]
     fn test_preprocess_branch_text() {
         assert_eq!(["master"], Git::preprocess_branch_text("master").as_slice());
-        assert_eq!(["master"], Git::preprocess_branch_text("* master").as_slice());
-        assert_eq!(["master", "branch"], Git::preprocess_branch_text("* master\nbranch").as_slice());
-        assert_eq!(["master"], Git::preprocess_branch_text("* (HEAD detached at 6f9a90e36e6)\nmaster\n").as_slice());
+        assert_eq!(
+            ["master"],
+            Git::preprocess_branch_text("* master").as_slice()
+        );
+        assert_eq!(
+            ["master", "branch"],
+            Git::preprocess_branch_text("* master\nbranch").as_slice()
+        );
+        assert_eq!(
+            ["master"],
+            Git::preprocess_branch_text("* (HEAD detached at 6f9a90e36e6)\nmaster\n").as_slice()
+        );
     }
 }
