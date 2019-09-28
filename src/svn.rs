@@ -8,8 +8,8 @@ use self::chrono::DateTime;
 use self::regex::Regex;
 
 /// Struct for retrieving info from an SVN repo.
-pub struct Svn<'a, T: Logger> {
-    logger: &'a T,
+pub struct Svn<'a> {
+    logger: &'a Logger,
 }
 
 // TODO (FS) doesn't work for e.g. release/2.6 etc. document using --branch
@@ -31,8 +31,8 @@ fn svn_date_string_to_timestamp(date_string: &str) -> Option<i64> {
         .ok();
 }
 
-impl<'a, T: Logger> Svn<'a, T> {
-    pub fn new(logger: &'a T) -> Svn<'a, T> {
+impl<'a> Svn<'a> {
+    pub fn new(logger: &'a Logger) -> Svn<'a> {
         return Svn { logger };
     }
 

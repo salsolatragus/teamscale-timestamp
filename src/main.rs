@@ -5,6 +5,7 @@ use std::path::Path;
 use clap::Arg;
 
 use crate::app::App;
+use crate::env_reader::EnvReader;
 use crate::logger::Logger;
 
 mod app;
@@ -44,10 +45,10 @@ fn main() {
                 code branch + timestamp."))
         .get_matches();
 
-    let app = App::new(matches.is_present("verbose"), |variable| {
-        std::env::var(variable).ok()
-    });
-    app.log(&format!(
+    let logger = Logger::new(matches.is_present("verbose"));
+    let env_reader = EnvReader::new(|name| std::env::var(name).ok());
+    let app = App::new(&logger, env_reader);
+    logger.log(&format!(
         "teamscale-timestamp v{} trying to determine branch + timestamp for an external upload",
         version
     ));

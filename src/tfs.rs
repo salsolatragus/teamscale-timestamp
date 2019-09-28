@@ -8,14 +8,13 @@ use reqwest::header::AUTHORIZATION;
 use reqwest::{Response, Url};
 use serde::Deserialize;
 
-use crate::app::App;
 use crate::env_reader::EnvReader;
 use crate::logger::Logger;
 
 /// Struct for retrieving info from a TFVC repo.
-pub struct Tfs<'a, T: Logger> {
-    logger: &'a T,
-    env_reader: &'a dyn EnvReader,
+pub struct Tfs<'a> {
+    logger: &'a Logger,
+    env_reader: &'a EnvReader<'a>,
 }
 
 #[derive(Deserialize)]
@@ -32,8 +31,8 @@ fn parse_date(date_string: String) -> TfsResult<String> {
         .map_err(|error| TfsError::InvalidDate(error, date_string));
 }
 
-impl<'a, T: Logger> Tfs<'a, T> {
-    pub fn new(logger: &'a T, env_reader: &'a dyn EnvReader) -> Tfs<'a, T> {
+impl<'a> Tfs<'a> {
+    pub fn new(logger: &'a Logger, env_reader: &'a EnvReader) -> Tfs<'a> {
         return Tfs { logger, env_reader };
     }
 

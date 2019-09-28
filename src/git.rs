@@ -1,6 +1,5 @@
 extern crate regex;
 
-use crate::app::App;
 use crate::logger::Logger;
 use crate::utils::run;
 
@@ -8,21 +7,21 @@ use self::regex::Regex;
 
 /// Struct for retrieving info from a git repo.
 pub struct Git<'a> {
-    app: &'a App,
+    logger: &'a Logger,
 }
 
 impl<'a> Git<'a> {
-    pub fn new(app: &'a App) -> Git<'a> {
-        return Git { app };
+    pub fn new(logger: &'a Logger) -> Git<'a> {
+        return Git { logger };
     }
 
     /// Runs git with the given arguments and returns the result if the git command succeeded.
     fn git(&self, args: &[&str]) -> Option<String> {
-        self.app.log(&format!("Running git {}", args.join(" ")));
+        self.logger.log(&format!("Running git {}", args.join(" ")));
         return match run("git", args, |command| command) {
             Ok(stdout) => Some(stdout),
             Err(error) => {
-                self.app.log(&error);
+                self.logger.log(&error);
                 None
             }
         };
@@ -34,11 +33,11 @@ impl<'a> Git<'a> {
 
         match opt_stdout {
             Some(ref stdout) if stdout.trim().eq("true") => {
-                self.app.log("Current directory is in git");
+                self.logger.log("Current directory is in git");
                 return true;
             }
             _ => {
-                self.app.log("Current directory is not in git");
+                self.logger.log("Current directory is not in git");
                 return false;
             }
         }
@@ -66,19 +65,19 @@ impl<'a> Git<'a> {
         let branches = Git::preprocess_branch_text(branch_text);
         match branches.len() {
             0 => {
-                self.app
+                self.logger
                     .log("Found no branches in the Git repo that contain the HEAD commit");
                 return None;
             }
             1 => {
-                self.app.log(&format!(
+                self.logger.log(&format!(
                     "Found exactly one branch in the Git repo that contains the HEAD commit: {}",
                     branches.first().unwrap()
                 ));
                 return branches.first().map(|branch| branch.to_string());
             }
             _ => {
-                self.app.log(&format!(
+                self.logger.log(&format!(
                     "Found more than one branch in the Git repo that contains the HEAD commit: {}",
                     branches.join(", ")
                 ));
