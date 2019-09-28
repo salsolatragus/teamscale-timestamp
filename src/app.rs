@@ -4,6 +4,7 @@ use std::option::Option;
 use std::path::Path;
 use std::string::String;
 
+use crate::env_reader::EnvReader;
 use crate::git::Git;
 use crate::logger::Logger;
 use crate::svn::Svn;
@@ -37,13 +38,6 @@ impl App {
         self.log("Trying to guess branch name from Git");
         let git = Git::new(self);
         return git.guess_branch();
-    }
-
-    pub fn env_variable(&self, name: &str) -> Option<String> {
-        return (self.env_reader)(name).peek_or_default(
-            |value| self.log(&format!("${}={}", name, value)),
-            "".to_string(),
-        );
     }
 
     fn branch_from_environment(&self) -> Option<String> {
@@ -101,7 +95,7 @@ impl App {
             .if_some(|timestamp| self.log(&format!("Found Git timestamp {}", timestamp)))
             .if_none(|| self.log("Found no Git timestamp"));
 
-        let tfs = Tfs::new(self);
+        let tfs = Tfs::new(self, self);
         let tfs_timestamp = tfs
             .timestamp()
             .if_some(|timestamp| self.log(&format!("Found TFVC timestamp {}", timestamp)))
@@ -120,6 +114,15 @@ impl App {
         let mut file = File::create(revision_txt_file)?;
         file.write_all(format!("timestamp: {}", t).as_ref())?;
         return Ok(());
+    }
+}
+
+impl EnvReader for App {
+    fn env_variable(&self, name: &str) -> Option<String> {
+        return (self.env_reader)(name).peek_or_default(
+            |value| self.log(&format!("${}={}", name, value)),
+            "".to_string(),
+        );
     }
 }
 

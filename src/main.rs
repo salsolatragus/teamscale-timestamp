@@ -8,6 +8,7 @@ use crate::app::App;
 use crate::logger::Logger;
 
 mod app;
+mod env_reader;
 mod git;
 mod logger;
 mod svn;

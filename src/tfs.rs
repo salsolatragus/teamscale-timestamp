@@ -9,11 +9,13 @@ use reqwest::{Response, Url};
 use serde::Deserialize;
 
 use crate::app::App;
+use crate::env_reader::EnvReader;
 use crate::logger::Logger;
 
 /// Struct for retrieving info from a TFVC repo.
-pub struct Tfs<'a> {
-    app: &'a App,
+pub struct Tfs<'a, T: Logger> {
+    logger: &'a T,
+    env_reader: &'a dyn EnvReader,
 }
 
 #[derive(Deserialize)]
@@ -24,21 +26,27 @@ struct ChangesetResponse {
 
 type TfsResult<T> = std::result::Result<T, TfsError>;
 
-impl<'a> Tfs<'a> {
-    pub fn new(app: &'a App) -> Tfs<'a> {
-        return Tfs { app };
+fn parse_date(date_string: String) -> TfsResult<String> {
+    return DateTime::parse_from_rfc3339(&date_string)
+        .map(|date| format!("{}000", date.timestamp()))
+        .map_err(|error| TfsError::InvalidDate(error, date_string));
+}
+
+impl<'a, T: Logger> Tfs<'a, T> {
+    pub fn new(logger: &'a T, env_reader: &'a dyn EnvReader) -> Tfs<'a, T> {
+        return Tfs { logger, env_reader };
     }
 
     pub fn timestamp(&self) -> Option<String> {
-        let teamproject = self.app.env_variable("SYSTEM_TEAMPROJECTID")?;
-        let changeset = self.app.env_variable("BUILD_SOURCEVERSION")?;
+        let teamproject = self.env_reader.env_variable("SYSTEM_TEAMPROJECTID")?;
+        let changeset = self.env_reader.env_variable("BUILD_SOURCEVERSION")?;
         let collection_uri = self
-            .app
+            .env_reader
             .env_variable("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI")?;
         return match self.timestamp_or_error(teamproject, changeset, collection_uri) {
             Ok(timestamp) => Some(timestamp),
             Err(error) => {
-                self.app.log(&format!("{}", error));
+                self.logger.log(&format!("{}", error));
                 None
             }
         };
@@ -54,13 +62,7 @@ impl<'a> Tfs<'a> {
         let url = self.create_changeset_url(collection_uri, teamproject, changeset);
         let response = self.request(url, access_token)?;
         let changeset_response = self.parse_response(response)?;
-        return Tfs::parse_date(changeset_response.created_date);
-    }
-
-    fn parse_date(date_string: String) -> TfsResult<String> {
-        return DateTime::parse_from_rfc3339(&date_string)
-            .map(|date| format!("{}000", date.timestamp()))
-            .map_err(|error| TfsError::InvalidDate(error, date_string));
+        return parse_date(changeset_response.created_date);
     }
 
     fn parse_response(&self, mut response: Response) -> TfsResult<ChangesetResponse> {
@@ -100,7 +102,7 @@ impl<'a> Tfs<'a> {
 
     fn get_access_token(&self) -> TfsResult<String> {
         return self
-            .app
+            .env_reader
             .env_variable("SYSTEM_ACCESSTOKEN")
             .ok_or(TfsError::AccessTokenNotProvided());
     }
@@ -222,11 +224,11 @@ mod tests {
     #[test]
     fn test_parse_timestamp() {
         assert_eq!(
-            Tfs::parse_date("2019-03-10T15:27:14.803Z".to_string()).ok(),
+            parse_date("2019-03-10T15:27:14.803Z".to_string()).ok(),
             Some("1552231634000".to_string())
         );
         assert_eq!(
-            Tfs::parse_date("2019-03-10T15:27:14.803-01:00".to_string()).ok(),
+            parse_date("2019-03-10T15:27:14.803-01:00".to_string()).ok(),
             Some("1552235234000".to_string())
         );
     }
