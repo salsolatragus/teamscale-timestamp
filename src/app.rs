@@ -117,7 +117,7 @@ impl<'a> App<'a> {
 
         let tfs = Tfs::new(self.logger, &self.env_reader);
         let tfs_timestamp = tfs
-            .timestamp()
+            .timestamp(None)
             .if_some(|timestamp| {
                 self.logger
                     .log(&format!("Found TFVC timestamp {}", timestamp))

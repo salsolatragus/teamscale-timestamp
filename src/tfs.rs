@@ -4,8 +4,7 @@ use std::fmt::Formatter;
 use std::io::Read;
 
 use chrono::DateTime;
-use reqwest::header::AUTHORIZATION;
-use reqwest::{Response, StatusCode, Url};
+use reqwest::{RequestBuilder, Response, StatusCode, Url};
 use serde::Deserialize;
 
 use crate::env_reader::EnvReader;
@@ -17,6 +16,22 @@ pub struct Tfs<'a> {
     env_reader: &'a EnvReader<'a>,
 }
 
+/// The type of access token to use when connecting to the TFS.
+enum AccessToken {
+    Personal(String),
+    Oauth(String),
+}
+
+impl AccessToken {
+    fn configure(&self, request_builder: RequestBuilder) -> RequestBuilder {
+        return match self {
+            AccessToken::Personal(token) => request_builder.basic_auth("", Some(token)),
+            AccessToken::Oauth(token) => request_builder.bearer_auth(token),
+        };
+    }
+}
+
+/// JSON response from the TFS for a changeset.
 #[derive(Deserialize)]
 struct ChangesetResponse {
     #[serde(rename = "createdDate")]
@@ -39,13 +54,18 @@ impl<'a> Tfs<'a> {
     /// Guesses the timestamp to which to upload the external analysis result based on the
     /// changeset reported by the TFS. Does a network request to determine the changeset's
     /// creation time.
-    pub fn timestamp(&self) -> Option<String> {
+    pub fn timestamp(&self, personal_access_token: Option<String>) -> Option<String> {
         let teamproject = self.env_reader.env_variable("SYSTEM_TEAMPROJECTID")?;
         let changeset = self.env_reader.env_variable("BUILD_SOURCEVERSION")?;
         let collection_uri = self
             .env_reader
             .env_variable("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI")?;
-        return match self.timestamp_or_error(teamproject, changeset, collection_uri) {
+        return match self.timestamp_or_error(
+            teamproject,
+            changeset,
+            collection_uri,
+            personal_access_token,
+        ) {
             Ok(timestamp) => Some(timestamp),
             Err(error) => {
                 self.logger.log(&format!("{}", error));
@@ -59,9 +79,13 @@ impl<'a> Tfs<'a> {
         teamproject: String,
         changeset: String,
         collection_uri: String,
+        personal_access_token: Option<String>,
     ) -> TfsResult<String> {
-        let access_token = self.get_access_token()?;
         let url = self.create_changeset_url(collection_uri, teamproject, changeset);
+        let access_token = match personal_access_token {
+            Some(token) => AccessToken::Personal(token),
+            None => AccessToken::Oauth(self.get_access_token()?),
+        };
         let response = self.request(url, access_token)?;
         let changeset_response = self.parse_response(response)?;
         return parse_date(changeset_response.created_date);
@@ -76,16 +100,13 @@ impl<'a> Tfs<'a> {
             .map_err(|error| TfsError::JsonParseFailed(error, string));
     }
 
-    fn request(&self, url: Url, access_token: String) -> TfsResult<Response> {
+    fn request(&self, url: Url, access_token: AccessToken) -> TfsResult<Response> {
         let client = reqwest::ClientBuilder::new()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
             .build()
             .unwrap();
-        let response = client
-            .get(url)
-            .header(AUTHORIZATION, format!("Bearer {}", access_token))
-            .send()?;
+        let response = access_token.configure(client.get(url)).send()?;
 
         if Tfs::is_tfs_signin_redirect(&response) {
             return Err(TfsError::InvalidAccessToken());
