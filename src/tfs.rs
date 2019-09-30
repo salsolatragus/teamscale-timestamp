@@ -11,7 +11,7 @@ use serde::Deserialize;
 use crate::env_reader::EnvReader;
 use crate::logger::Logger;
 
-/// Struct for retrieving info from a TFVC repo.
+/// Retries info from a TFVC repo.
 pub struct Tfs<'a> {
     logger: &'a Logger,
     env_reader: &'a EnvReader<'a>,
@@ -36,6 +36,9 @@ impl<'a> Tfs<'a> {
         return Tfs { logger, env_reader };
     }
 
+    /// Guesses the timestamp to which to upload the external analysis result based on the
+    /// changeset reported by the TFS. Does a network request to determine the changeset's
+    /// creation time.
     pub fn timestamp(&self) -> Option<String> {
         let teamproject = self.env_reader.env_variable("SYSTEM_TEAMPROJECTID")?;
         let changeset = self.env_reader.env_variable("BUILD_SOURCEVERSION")?;
