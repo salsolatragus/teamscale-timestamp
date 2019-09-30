@@ -5,7 +5,7 @@ use std::io::Read;
 
 use chrono::DateTime;
 use reqwest::header::AUTHORIZATION;
-use reqwest::{Response, Url};
+use reqwest::{Response, StatusCode, Url};
 use serde::Deserialize;
 
 use crate::env_reader::EnvReader;
@@ -83,7 +83,26 @@ impl<'a> Tfs<'a> {
             .get(url)
             .header(AUTHORIZATION, format!("Bearer {}", access_token))
             .send()?;
+
+        if Tfs::is_tfs_signin_redirect(&response) {
+            return Err(TfsError::InvalidAccessToken());
+        }
         Ok(response)
+    }
+
+    /// If the used credentials are invalid, the TFS sends a 302 status code and redirects the user
+    /// to the _signin page.
+    fn is_tfs_signin_redirect(response: &Response) -> bool {
+        if let Some(location) = response
+            .headers()
+            .get(reqwest::header::LOCATION)
+            .map(|header| header.to_str())
+            .transpose()
+            .unwrap_or(None)
+        {
+            return response.status() == StatusCode::FOUND && location.contains("/_signin");
+        }
+        return false;
     }
 
     fn create_changeset_url(

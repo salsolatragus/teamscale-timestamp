@@ -128,7 +128,6 @@ impl<'a> App<'a> {
 
     // TODO comments, print helpful errors in case of e.g. not authenticated, tests for that as well
     // TODO try out in azure devops
-    // TODO refactor code for better error handling and logging with results
     // TODO support tfs access token as well? would allow testing!
     // TODO documentation!
     // TODO document rust-format requirement when developing
