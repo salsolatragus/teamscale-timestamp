@@ -22,6 +22,7 @@ enum AccessToken {
     Oauth(String),
 }
 
+/// Represents the authentication method and data used to communicate with the TFS.
 impl AccessToken {
     fn configure(&self, request_builder: RequestBuilder) -> RequestBuilder {
         return match self {
@@ -36,14 +37,6 @@ impl AccessToken {
 struct ChangesetResponse {
     #[serde(rename = "createdDate")]
     created_date: String,
-}
-
-type TfsResult<T> = std::result::Result<T, TfsError>;
-
-fn parse_date(date_string: String) -> TfsResult<String> {
-    return DateTime::parse_from_rfc3339(&date_string)
-        .map(|date| format!("{}000", date.timestamp()))
-        .map_err(|error| TfsError::InvalidDate(error, date_string));
 }
 
 impl<'a> Tfs<'a> {
@@ -95,7 +88,7 @@ impl<'a> Tfs<'a> {
         let mut string = String::new();
         response
             .read_to_string(&mut string)
-            .map_err(TfsError::CannotReadRequest)?;
+            .map_err(TfsError::CannotReadRequestBody)?;
         return serde_json::from_str::<ChangesetResponse>(&string)
             .map_err(|error| TfsError::JsonParseFailed(error, string));
     }
@@ -110,28 +103,13 @@ impl<'a> Tfs<'a> {
             .unwrap();
         let response = access_token.configure(client.get(url)).send()?;
 
-        if Tfs::is_tfs_signin_redirect(&response) {
+        if is_tfs_signin_redirect(&response) {
             return Err(TfsError::InvalidAccessToken());
         }
         if !response.status().is_success() {
             return Err(TfsError::RequestStatusNotSuccessful(response));
         }
         Ok(response)
-    }
-
-    /// If the used credentials are invalid, the TFS sends a 302 status code and redirects the user
-    /// to the _signin page.
-    fn is_tfs_signin_redirect(response: &Response) -> bool {
-        if let Some(location) = response
-            .headers()
-            .get(reqwest::header::LOCATION)
-            .map(|header| header.to_str())
-            .transpose()
-            .unwrap_or(None)
-        {
-            return response.status() == StatusCode::FOUND && location.contains("/_signin");
-        }
-        return false;
     }
 
     fn create_changeset_url(
@@ -155,17 +133,39 @@ impl<'a> Tfs<'a> {
     }
 }
 
+/// If the used credentials are invalid, the TFS sends a 302 status code and redirects the user
+/// to the _signin page.
+fn is_tfs_signin_redirect(response: &Response) -> bool {
+    if let Some(location) = response
+        .headers()
+        .get(reqwest::header::LOCATION)
+        .map(|header| header.to_str())
+        .transpose()
+        .unwrap_or(None)
+    {
+        return response.status() == StatusCode::FOUND && location.contains("/_signin");
+    }
+    return false;
+}
+
+fn parse_date(date_string: String) -> TfsResult<String> {
+    return DateTime::parse_from_rfc3339(&date_string)
+        .map(|date| format!("{}000", date.timestamp()))
+        .map_err(|error| TfsError::DateStringCannotBeParsed(error, date_string));
+}
+
+/// All errors that can occurr when trying to determine the timestamp of a TFVC changeset.
 #[derive(Debug)]
 enum TfsError {
     JsonParseFailed(serde_json::error::Error, String),
     RequestTimedOut(reqwest::Error),
-    CannotReadRequest(std::io::Error),
-    TfsServerError(reqwest::Error),
+    CannotReadRequestBody(std::io::Error),
+    TfsInternalServerError(reqwest::Error),
     AccessTokenNotProvided(),
     InvalidAccessToken(),
-    OtherRequestError(reqwest::Error),
     RequestStatusNotSuccessful(Response),
-    InvalidDate(chrono::format::ParseError, String),
+    OtherRequestError(reqwest::Error),
+    DateStringCannotBeParsed(chrono::format::ParseError, String),
 }
 
 impl Display for TfsError {
@@ -179,7 +179,7 @@ impl Display for TfsError {
             TfsError::RequestTimedOut(cause) => {
                 write!(f, "Request to {} timed out: {}", cause.safe_url(), cause)
             }
-            TfsError::TfsServerError(cause) => write!(
+            TfsError::TfsInternalServerError(cause) => write!(
                 f,
                 "TFS returned error for request to {}: {}",
                 cause.safe_url(),
@@ -207,10 +207,10 @@ impl Display for TfsError {
                  job, which will set the correct SYSTEM_ACCESSTOKEN environmen tvariable! \
                  Otherwise, the timestamp for a TFVC changeset cannot be determined"
             ),
-            TfsError::InvalidDate(cause, date_string) => {
+            TfsError::DateStringCannotBeParsed(cause, date_string) => {
                 write!(f, "TFS returned unparsable date {}: {}", date_string, cause)
             }
-            TfsError::CannotReadRequest(cause) => {
+            TfsError::CannotReadRequestBody(cause) => {
                 write!(f, "Failed to read request body: {}", cause)
             }
             TfsError::RequestStatusNotSuccessful(response) => write!(
@@ -223,6 +223,33 @@ impl Display for TfsError {
     }
 }
 
+type TfsResult<T> = std::result::Result<T, TfsError>;
+
+impl Error for TfsError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        return match self {
+            TfsError::JsonParseFailed(cause, _) => Some(cause),
+            TfsError::RequestTimedOut(cause) => Some(cause),
+            TfsError::TfsInternalServerError(cause) => Some(cause),
+            TfsError::OtherRequestError(cause) => Some(cause),
+            _ => None,
+        };
+    }
+}
+
+impl From<reqwest::Error> for TfsError {
+    fn from(error: reqwest::Error) -> Self {
+        if error.is_timeout() {
+            return TfsError::RequestTimedOut(error);
+        }
+        if error.is_server_error() {
+            return TfsError::TfsInternalServerError(error);
+        }
+        return TfsError::OtherRequestError(error);
+    }
+}
+
+/// Wrappers around optional properties of a reqwest error.
 trait SafeRequestErrorProps {
     fn safe_url(&self) -> String;
     fn safe_status(&self) -> String;
@@ -237,30 +264,6 @@ impl SafeRequestErrorProps for reqwest::Error {
         return self
             .status()
             .map_or("<no HTTP status>".to_string(), |status| status.to_string());
-    }
-}
-
-impl Error for TfsError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        return match self {
-            TfsError::JsonParseFailed(cause, _) => Some(cause),
-            TfsError::RequestTimedOut(cause) => Some(cause),
-            TfsError::TfsServerError(cause) => Some(cause),
-            TfsError::OtherRequestError(cause) => Some(cause),
-            _ => None,
-        };
-    }
-}
-
-impl From<reqwest::Error> for TfsError {
-    fn from(error: reqwest::Error) -> Self {
-        if error.is_timeout() {
-            return TfsError::RequestTimedOut(error);
-        }
-        if error.is_server_error() {
-            return TfsError::TfsServerError(error);
-        }
-        return TfsError::OtherRequestError(error);
     }
 }
 
