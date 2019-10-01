@@ -126,11 +126,6 @@ impl<'a> App<'a> {
         return svn_timestamp.or(git_timestamp).or(tfs_timestamp);
     }
 
-    // TODO comments, print helpful errors in case of e.g. not authenticated, tests for that as well
-    // TODO try out in azure devops
-    // TODO support tfs access token as well? would allow testing!
-    // TODO documentation!
-    // TODO document rust-format requirement when developing
     /// Attempts to write revision.txt content to the given file path.
     pub fn write_revision_txt(&self, t: &str, revision_txt_file: &Path) -> std::io::Result<()> {
         let mut file = File::create(revision_txt_file)?;

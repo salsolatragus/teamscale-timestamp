@@ -13,12 +13,22 @@ output as the value for the `?t=` parameter in your REST request.
 
 Run with `--help` to see all available options.
 
+# Supported Version Control Systems
+
+- Git
+- SVN
+- Team Foundation Version Control
+
+For SVN, only branches with a single subfolder are supported. E.g. `repo/branches/release1.2` will
+work, while `repo/branches/release/1.2` will not. In the latter case, please manually specify the
+correct branch via the `--branch` parameter.
+
 # Supported Build Environments
 
 For SVN repositories, the build environment does not matter (all
 required information will be read from the SVN checkout).
 
-For Git, the branch cannot always be determined from the repository
+For Git and TFVC, the branch cannot always be determined from the repository
 clone alone. Instead, the tool tries to read the checked out branch
 from your build tool. The following build environments are supported:
 
@@ -32,9 +42,10 @@ from your build tool. The following build environments are supported:
 - Gitlab Pipelines
 - Bitbucket Pipelines
 
-If your environment is not supported, you can manually pass the checked
-out Git branch via the `--branch` command line switch.
+If your environment is not supported or auto-detection fails, you can manually pass the checked
+out branch via the `--branch` command line switch.
 
 # Development
 
-Under Linux, plesae install `libssl-dev` to obtain OpenSSL headers.
+Please use IntelliJ for development and configure it to run `rust-fmt` on save.
+Under Linux, please install `libssl-dev` to obtain OpenSSL headers. Otherwise your compile may fail.

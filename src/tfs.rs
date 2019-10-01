@@ -4,7 +4,7 @@ use std::fmt::Formatter;
 use std::io::Read;
 
 use chrono::DateTime;
-use reqwest::{RequestBuilder, Response, StatusCode, Url};
+use reqwest::{RedirectPolicy, RequestBuilder, Response, StatusCode, Url};
 use serde::Deserialize;
 
 use crate::env_reader::EnvReader;
@@ -61,9 +61,9 @@ impl<'a> Tfs<'a> {
             .env_reader
             .env_variable("SYSTEM_TEAMFOUNDATIONCOLLECTIONURI")?;
         return match self.timestamp_or_error(
+            collection_uri,
             teamproject,
             changeset,
-            collection_uri,
             personal_access_token,
         ) {
             Ok(timestamp) => Some(timestamp),
@@ -76,9 +76,9 @@ impl<'a> Tfs<'a> {
 
     fn timestamp_or_error(
         &self,
+        collection_uri: String,
         teamproject: String,
         changeset: String,
-        collection_uri: String,
         personal_access_token: Option<String>,
     ) -> TfsResult<String> {
         let url = self.create_changeset_url(collection_uri, teamproject, changeset);
@@ -101,15 +101,20 @@ impl<'a> Tfs<'a> {
     }
 
     fn request(&self, url: Url, access_token: AccessToken) -> TfsResult<Response> {
+        self.logger.log(format!("Requesting URL {}", url));
         let client = reqwest::ClientBuilder::new()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
+            .redirect(RedirectPolicy::none())
             .build()
             .unwrap();
         let response = access_token.configure(client.get(url)).send()?;
 
         if Tfs::is_tfs_signin_redirect(&response) {
             return Err(TfsError::InvalidAccessToken());
+        }
+        if !response.status().is_success() {
+            return Err(TfsError::RequestStatusNotSuccessful(response));
         }
         Ok(response)
     }
@@ -159,6 +164,7 @@ enum TfsError {
     AccessTokenNotProvided(),
     InvalidAccessToken(),
     OtherRequestError(reqwest::Error),
+    RequestStatusNotSuccessful(Response),
     InvalidDate(chrono::format::ParseError, String),
 }
 
@@ -207,6 +213,12 @@ impl Display for TfsError {
             TfsError::CannotReadRequest(cause) => {
                 write!(f, "Failed to read request body: {}", cause)
             }
+            TfsError::RequestStatusNotSuccessful(response) => write!(
+                f,
+                "Request to {} failed with status code {}",
+                response.url(),
+                response.status()
+            ),
         }
     }
 }
@@ -273,5 +285,39 @@ mod tests {
             parse_date("2019-03-10T15:27:14.803-01:00".to_string()).ok(),
             Some("1552235234000".to_string())
         );
+    }
+
+    #[test]
+    fn test_request() {
+        let access_token = std::env::var("TFS_ACCESS_TOKEN").unwrap();
+        let logger = Logger::new(true);
+        let env_reader = EnvReader::new(|_| None);
+        let tfs = Tfs::new(&logger, &env_reader);
+        let result = tfs.timestamp_or_error(
+            "https://cqse.visualstudio.com".to_string(),
+            "TestData".to_string(),
+            "27754".to_string(),
+            Some(access_token),
+        );
+        assert_eq!(result.unwrap(), "1552231634000".to_string());
+    }
+
+    #[test]
+    fn test_invalid_access_token() {
+        let logger = Logger::new(true);
+        let env_reader = EnvReader::new(|_| None);
+        let tfs = Tfs::new(&logger, &env_reader);
+        let result = tfs.timestamp_or_error(
+            "https://cqse.visualstudio.com".to_string(),
+            "TestData".to_string(),
+            "27754".to_string(),
+            Some("invalid".to_string()),
+        );
+
+        let error = result.err();
+        match error {
+            Some(TfsError::InvalidAccessToken()) => (),
+            _ => panic!("incorrect error type: {:?}", error),
+        }
     }
 }
