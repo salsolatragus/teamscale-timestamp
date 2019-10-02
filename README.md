@@ -8,7 +8,7 @@ findings, ...)
 # Usage
 
 Simply run the command `teamscale-timestamp` inside your build system's
-checkout of your Git or SVN repository. If it succeeds, use its
+checkout of your version control repository. If it succeeds, use its
 output as the value for the `?t=` parameter in your REST request.
 
 Run with `--help` to see all available options.
