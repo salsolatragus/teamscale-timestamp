@@ -19,9 +19,11 @@ Run with `--help` to see all available options.
 - SVN
 - Team Foundation Version Control
 
-For SVN, only branches with a single subfolder are supported. E.g. `repo/branches/release1.2` will
+*For SVN*, only branches with a single subfolder are supported. E.g. `repo/branches/release1.2` will
 work, while `repo/branches/release/1.2` will not. In the latter case, please manually specify the
 correct branch via the `--branch` parameter.
+
+*For Team Foundation Version Control*, you must manually specify the branch you are building via the `--branch` parameter as TFS/Azure DevOps builds do not always report the correct branch name.
 
 # Supported Build Environments
 
@@ -49,3 +51,4 @@ out branch via the `--branch` command line switch.
 
 Please use IntelliJ for development and configure it to run `rust-fmt` on save.
 Under Linux, please install `libssl-dev` to obtain OpenSSL headers. Otherwise your compile may fail.
+
