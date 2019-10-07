@@ -40,7 +40,7 @@ If your environment is not supported or auto-detection fails, you can manually p
 out branch via the `--branch` command line switch:
 
 ```sh
-teamscale-timestamp.exe --branch develop
+teamscale-timestamp --branch develop
 ```
 
 ## For SVN
@@ -54,7 +54,7 @@ work, while `repo/branches/release/1.2` will not. In the latter case, please man
 correct branch via the `--branch` parameter:
 
 ```sh
-teamscale-timestamp.exe --branch releases/1.2
+teamscale-timestamp --branch releases/1.2
 ```
 
 ## For Team Foundation Version Control
