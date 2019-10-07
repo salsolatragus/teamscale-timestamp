@@ -68,6 +68,8 @@ teamscale-timestamp.exe --branch Releases/2.56
 Since the TFVC integration needs to talk to the REST API of the TFS, you must furthermore make an OAuth access token available to the program by activiting `Additional options > Allow scripts to access OAuth token` for
 your pipeline job.  This should set the environment variable `SYSTEM_ACCESSTOKEN`.
 
+![How to configure Azure DevOps/TFS](images/azure-devops-config.png)
+
 _Alternatively_, you can provide a personal access token (_not an OAuth access token!_) via the command line option `--tfs-pat`. The user this access token belongs to must be able to read Work Items.
 
 Example invocation with personal access token:
