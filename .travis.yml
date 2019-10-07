@@ -8,7 +8,12 @@ addons:
   apt:
     packages:
       - libssl-dev
+install:
+  - |
+    [ $TRAVIS_OS_NAME = windows ] && choco install python pip
+    pip install grip
 script:
+  - python -m grip --export
   - cargo test --verbose
   - cargo build --verbose --release
   - |
@@ -17,17 +22,14 @@ script:
     target/release/teamscale-timestamp
     echo "---------------------------------------------------------------"
 before_deploy:
-  - pwd || true;
   - |
     mkdir -p deploy
-    [ -e target/release/teamscale-timestamp ] && cp target/release/teamscale-timestamp deploy
-    [ -e target/release/teamscale-timestamp.exe ] && cp target/release/teamscale-timestamp.exe deploy
+    cp README.html deploy
+    cp target/release/teamscale-timestamp* deploy
     cd deploy
-    [ -e teamscale-timestamp ] && zip linux.zip teamscale-timestamp
-    [ -e teamscale-timestamp.exe ] && 7z a windows.zip teamscale-timestamp.exe
+    [ -e teamscale-timestamp ] && zip linux.zip *
+    [ -e teamscale-timestamp.exe ] && 7z a windows.zip *
     cd ..
-  - pwd || true;
-  - ls -altr deploy || true;
 deploy:
   provider: releases
   api_key:
