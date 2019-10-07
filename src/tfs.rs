@@ -47,7 +47,7 @@ impl<'a> Tfs<'a> {
     /// Guesses the timestamp to which to upload the external analysis result based on the
     /// changeset reported by the TFS. Does a network request to determine the changeset's
     /// creation time.
-    pub fn timestamp(&self, personal_access_token: Option<String>) -> Option<String> {
+    pub fn timestamp(&self, personal_access_token: Option<&str>) -> Option<String> {
         let teamproject = self.env_reader.env_variable("SYSTEM_TEAMPROJECTID")?;
         let changeset = self.env_reader.env_variable("BUILD_SOURCEVERSION")?;
         let collection_uri = self
@@ -72,11 +72,11 @@ impl<'a> Tfs<'a> {
         collection_uri: String,
         teamproject: String,
         changeset: String,
-        personal_access_token: Option<String>,
+        personal_access_token: Option<&str>,
     ) -> TfsResult<String> {
         let url = self.create_changeset_url(collection_uri, teamproject, changeset);
         let access_token = match personal_access_token {
-            Some(token) => AccessToken::Personal(token),
+            Some(token) => AccessToken::Personal(token.to_string()),
             None => AccessToken::Oauth(self.get_access_token()?),
         };
         let response = self.request(url, access_token)?;
@@ -204,8 +204,10 @@ impl Display for TfsError {
                 "The access token provided via the environment variable \
                  SYSTEM_ACCESSTOKEN was not accepted by the TFS. Please make sure you activated \
                  'Additional options > Allow scripts to access OAuth token' for your pipeline \
-                 job, which will set the correct SYSTEM_ACCESSTOKEN environmen tvariable! \
-                 Otherwise, the timestamp for a TFVC changeset cannot be determined"
+                 job, which will set the correct SYSTEM_ACCESSTOKEN environment variable! \
+                 Otherwise, the timestamp for a TFVC changeset cannot be determined. \
+                 Alternatively, you can provide a personal access token via the command line option \
+                 --tfs-pat."
             ),
             TfsError::DateStringCannotBeParsed(cause, date_string) => {
                 write!(f, "TFS returned unparsable date {}: {}", date_string, cause)
@@ -300,7 +302,7 @@ mod tests {
             "https://cqse.visualstudio.com".to_string(),
             "TestData".to_string(),
             "27754".to_string(),
-            Some(access_token),
+            Some(access_token.as_str()),
         );
         assert_eq!(result.unwrap(), "1552231634000".to_string());
     }
@@ -314,7 +316,7 @@ mod tests {
             "https://cqse.visualstudio.com".to_string(),
             "TestData".to_string(),
             "27754".to_string(),
-            Some("invalid".to_string()),
+            Some("invalid"),
         );
 
         let error = result.err();

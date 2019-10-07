@@ -43,11 +43,20 @@ fn main() {
             .help("If this option is set, instead of printing to STDOUT, writes the timestamp to \
                 the given FILE so it can be used by profilers to map coverage data to the correct \
                 code branch + timestamp."))
+        .arg(Arg::with_name("tfs-pat")
+            .long("tfs-pat")
+            .takes_value(true)
+            .value_name("ACCESS_TOKEN")
+            .help("If this option is set, instead of trying to read an OAuth access token for the \
+                the TFS from an environment variable, uses the given personal access token to talk \
+                to the TFS REST API. The user this token belongs to must have read access to Work \
+                Items!"))
         .get_matches();
 
     let logger = Logger::new(matches.is_present("verbose"));
     let env_reader = EnvReader::new(|name| std::env::var(name).ok());
-    let app = App::new(&logger, env_reader);
+    let tfs_access_token = matches.value_of("tfs-pat");
+    let app = App::new(&logger, env_reader, tfs_access_token);
     logger.log(&format!(
         "teamscale-timestamp v{} trying to determine branch + timestamp for an external upload",
         version

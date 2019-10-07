@@ -14,10 +14,15 @@ use crate::utils::PeekOption;
 pub struct App<'a> {
     logger: &'a Logger,
     env_reader: EnvReader<'a>,
+    tfs_personal_access_token: Option<&'a str>,
 }
 
 impl<'a> App<'a> {
-    pub fn new(logger: &'a Logger, env_reader: EnvReader<'a>) -> App<'a> {
+    pub fn new(
+        logger: &'a Logger,
+        env_reader: EnvReader<'a>,
+        tfs_personal_access_token: Option<&'a str>,
+    ) -> App<'a> {
         return App {
             logger,
             env_reader: EnvReader::new(move |name| {
@@ -26,6 +31,7 @@ impl<'a> App<'a> {
                     "".to_string(),
                 )
             }),
+            tfs_personal_access_token,
         };
     }
 
@@ -117,7 +123,7 @@ impl<'a> App<'a> {
 
         let tfs = Tfs::new(self.logger, &self.env_reader);
         let tfs_timestamp = tfs
-            .timestamp(None)
+            .timestamp(self.tfs_personal_access_token)
             .if_some(|timestamp| {
                 self.logger
                     .log(&format!("Found TFVC timestamp {}", timestamp))
@@ -143,7 +149,7 @@ mod tests {
     #[test]
     fn empty_environment_means_no_branch() {
         let branch =
-            App::new(&Logger::new(true), EnvReader::new(|_| None)).branch_from_environment();
+            App::new(&Logger::new(true), EnvReader::new(|_| None), None).branch_from_environment();
         assert_eq!(None, branch);
     }
 
@@ -157,6 +163,7 @@ mod tests {
                 }
                 return None;
             }),
+            None,
         )
         .branch_from_environment();
         assert_eq!(Some("the-branch".to_string()), branch);
