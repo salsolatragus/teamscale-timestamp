@@ -8,10 +8,16 @@ addons:
   apt:
     packages:
       - libssl-dev
+      - python-pip
 install:
   - |
-    [ $TRAVIS_OS_NAME = windows ] && choco install python pip
-    pip install grip
+    if [ $TRAVIS_OS_NAME = windows ]
+    then
+      choco install python pip
+      pip install grip
+    else
+      sudo pip install grip
+    fi
 script:
   - python -m grip --export
   - cargo test --verbose
