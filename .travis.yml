@@ -31,9 +31,11 @@ script:
     echo "---------------------------------------------------------------"
 before_deploy:
   - |
-    mkdir -p deploy
-    cp README.html deploy
-    cp target/release/teamscale-timestamp* deploy
+    mkdir -p deploy/documentation
+    cp README.html deploy/documentation
+    cp -r images deploy/documentation
+    [ -e target/release/teamscale-timestamp ] && cp target/release/teamscale-timestamp deploy
+    [ -e target/release/teamscale-timestamp.exe ] && cp target/release/teamscale-timestamp.exe deploy
     cd deploy
     [ -e teamscale-timestamp ] && zip linux.zip *
     [ -e teamscale-timestamp.exe ] && 7z a windows.zip *
