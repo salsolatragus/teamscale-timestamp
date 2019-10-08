@@ -21,7 +21,7 @@ before_install:
       sudo pip install grip
     fi
 script:
-  - python -m grip --export
+  - python -m grip --export -pass $GITHUB_ACCESS_TOKEN
   - cargo test --verbose
   - cargo build --verbose --release
   - |
