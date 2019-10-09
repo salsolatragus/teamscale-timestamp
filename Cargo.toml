@@ -5,7 +5,9 @@ authors = ["Fabian Streitel <streitel@cqse.eu>"]
 edition = "2018"
 
 [profile.release]
+opt-level = "z"
 debug = true
+lto = true
 
 [dependencies]
 regex = "1.1.9"
