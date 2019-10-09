@@ -37,7 +37,7 @@ before_deploy:
     [ -e target/release/teamscale-timestamp ] && cp target/release/teamscale-timestamp deploy
     [ -e target/release/teamscale-timestamp.exe ] && cp target/release/teamscale-timestamp.exe deploy
     cd deploy
-    [ -e teamscale-timestamp ] && zip linux.zip *
+    [ -e teamscale-timestamp ] && zip -r linux.zip *
     [ -e teamscale-timestamp.exe ] && 7z a windows.zip *
     cd ..
 deploy:
