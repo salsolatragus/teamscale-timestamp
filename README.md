@@ -78,8 +78,15 @@ Example invocation with personal access token:
 teamscale-timestamp.exe --tfs-pat arlGrraLLVOL323ara33556 --branch Releases/2.56
 ```
 
+If you'd like to write the timestamp to a `revision.txt` file for use with the [Teamscale .NET Profiler][ts-net-profiler], you can use the `--revision-txt` parameter:
+
+```sh
+teamscale-timestamp.exe --tfs-pat arlGrraLLVOL323ara33556 --branch Releases/2.56 --revision-txt .\revision.txt
+```
+
 # Development
 
 Please use IntelliJ for development and configure it to run `rust-fmt` on save.
 Under Linux, please install `libssl-dev` to obtain OpenSSL headers. Otherwise your compile may fail.
 
+[ts-net-profiler]: https://github.com/cqse/teamscale-profiler-dotnet
