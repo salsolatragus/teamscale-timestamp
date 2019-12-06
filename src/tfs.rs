@@ -150,7 +150,7 @@ fn is_tfs_signin_redirect(response: &Response) -> bool {
 
 fn parse_date(date_string: String) -> TfsResult<String> {
     return DateTime::parse_from_rfc3339(&date_string)
-        .map(|date| format!("{}000", date.timestamp()))
+        .map(|date| format!("{}{}", date.timestamp(), date.timestamp_subsec_millis()))
         .map_err(|error| TfsError::DateStringCannotBeParsed(error, date_string));
 }
 
