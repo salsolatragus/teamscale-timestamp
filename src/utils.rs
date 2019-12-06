@@ -52,7 +52,7 @@ pub fn run(program: &str, args: &[&str], configurator: fn(&mut Command) -> &mut 
 mod test {
     use crate::utils::run;
 
-    #[test]
+    ///#[test]
     fn test_run() {
         if cfg!(windows) {
             let output = run("cmd", &["/c", "echo Windows"], |command| command);
