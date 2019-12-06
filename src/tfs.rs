@@ -284,11 +284,11 @@ mod tests {
     fn test_parse_timestamp() {
         assert_eq!(
             parse_date("2019-03-10T15:27:14.803Z".to_string()).ok(),
-            Some("1552231634000".to_string())
+            Some("1552231634803".to_string())
         );
         assert_eq!(
             parse_date("2019-03-10T15:27:14.803-01:00".to_string()).ok(),
-            Some("1552235234000".to_string())
+            Some("1552235234803".to_string())
         );
     }
 
@@ -304,7 +304,7 @@ mod tests {
             "27754".to_string(),
             Some(access_token.as_str()),
         );
-        assert_eq!(result.unwrap(), "1552231634000".to_string());
+        assert_eq!(result.unwrap(), "1552231634803".to_string());
     }
 
     #[test]
